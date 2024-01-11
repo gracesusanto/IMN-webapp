@@ -1,0 +1,40 @@
+/* FormStyles.css */
+
+.form-container {
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    width: 300px;
+}
+
+.form-field,
+.form-button {
+    width: calc(100% - 20px);
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.form-button {
+    color: white;
+    background-color: #007bff;
+    border: none;
+    cursor: pointer;
+}
+
+.form-button:hover {
+    background-color: #0056b3;
+}
+
+.form-label {
+    margin-bottom: 5px;
+    display: block;
+}
+
+.success-message {
+    margin-top: 10px;
+    color: #28a745;
+}
