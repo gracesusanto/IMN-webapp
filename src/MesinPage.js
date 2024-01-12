@@ -81,6 +81,25 @@ const MesinPage = () => {
         setCurrentMesin(mesin);
     };
 
+    const confirmDelete = (id) => {
+        const enteredId = window.prompt("Masukan ID Mesin yang ingin di hapus:");
+        if (enteredId && enteredId === id) {
+            handleDelete(id);
+        } else {
+            alert("ID Mesin yang anda masukan tidak sesuai.");
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            const response = await axios.delete(`${process.env.REACT_APP_API_URL}/mesin/${id}`);
+            fetchData();
+            alert(`Mesin ${id} berhasil dihapus.`)
+        } catch (error) {
+            alert(`Error menghapus Mesin ${id}.`)
+        }
+    };
+
     const columns = React.useMemo(
         () => [
             {
@@ -95,8 +114,18 @@ const MesinPage = () => {
                 Header: 'Tonase',
                 accessor: 'tonase',
             },
+            {
+                Header: 'Actions',
+                id: 'actions',
+                Cell: ({ row }) => (
+                    <>
+                        <button onClick={() => handleEdit(row.original)}>Modify</button>
+                        <button onClick={() => confirmDelete(row.original.id)}>Delete</button>
+                    </>
+                ),
+            },
         ],
-        []
+        [handleEdit, confirmDelete]
     );
 
     return (
