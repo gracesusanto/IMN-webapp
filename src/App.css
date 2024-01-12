@@ -46,6 +46,7 @@
 
 .main-container {
   margin-left: 50px;
+  margin-right: 50px;
 }
 
 .table-container {
@@ -55,7 +56,7 @@
 
 table {
   border-collapse: collapse;
-  width: 80%;
+  width: 100%;
   table-layout: fixed;
 }
 
