@@ -63,7 +63,7 @@ const OperatorPage = () => {
     };
 
     const confirmDelete = (id) => {
-        const enteredId = window.prompt("Masukan ID Operator yang ingin di hapus:");
+        const enteredId = window.prompt(`Masukan ID Operator yang ingin di hapus (${id}):`);
         if (enteredId && enteredId === id) {
             handleDelete(id);
         } else {

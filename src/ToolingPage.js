@@ -92,7 +92,7 @@ const ToolingPage = () => {
     };
 
     const confirmDelete = (id) => {
-        const enteredId = window.prompt("Masukan ID Tooling yang ingin di hapus:");
+        const enteredId = window.prompt(`Masukan ID Tooling yang ingin di hapus (${id}):`);
         if (enteredId && enteredId === id) {
             handleDelete(id);
         } else {
@@ -109,9 +109,6 @@ const ToolingPage = () => {
             alert(`Error menghapus tooling ${id}.`)
         }
     };
-
-
-
 
     const columns = React.useMemo(
         () => [
