@@ -13,7 +13,7 @@ const ToolingPage = () => {
     }, []);
 
     const fetchData = () => {
-        axios.get('http://0.0.0.0:8000/tooling/')
+        axios.get(`${process.env.REACT_APP_API_URL}/tooling/`)
             .then(response => {
                 setData(response.data);
             })
