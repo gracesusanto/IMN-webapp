@@ -4,6 +4,7 @@ import ToolingPage from './ToolingPage';
 import OperatorPage from './OperatorPage';
 import MesinPage from './MesinPage';
 import RunningMesinPage from './RunningMesinPage';
+import ReportPage from './ReportPage';
 import './App.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             <li><Link to="/operator">Operator</Link></li>
             <li><Link to="/mesin">Mesin</Link></li>
             <li><Link to="/running-mesin">Running Mesin</Link></li>
+            <li><Link to="/report">Report</Link></li>
           </ul>
         </nav>
 
@@ -24,6 +26,7 @@ function App() {
           <Route path="/operator" element={<OperatorPage />} />
           <Route path="/mesin" element={<MesinPage />} />
           <Route path="/running-mesin" element={<RunningMesinPage />} />
+          <Route path="/report" element={<ReportPage />} />
         </Routes>
       </div>
     </Router>
