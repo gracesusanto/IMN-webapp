@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import DataTable from './DataTable';
+import styles from './ReportPage.module.css'; // Import the styles
 
 const getTodayDateJakarta = () => {
     const now = new Date();
@@ -9,8 +10,8 @@ const getTodayDateJakarta = () => {
 };
 
 const ReportPage = () => {
-    const [reportType, setReportType] = useState('operator'); // 'operator' or 'mesin'
-    const [format, setFormat] = useState('limax_dashboard'); // 'limax_dashboard', 'imn_dashboard'
+    const [reportType, setReportType] = useState('mesin'); // 'operator' or 'mesin'
+    const [format, setFormat] = useState('imn_dashboard'); // 'limax_dashboard', 'imn_dashboard'
     const [dateFrom, setDateFrom] = useState(getTodayDateJakarta());
     const [dateTo, setDateTo] = useState(getTodayDateJakarta());
     const [shiftFrom, setShiftFrom] = useState(1);
@@ -72,22 +73,55 @@ const ReportPage = () => {
         })) : [];
     }, [data]);
 
+    const inputForm = (
+        <table className={styles.tableStyle}>
+            <thead>
+                <tr>
+                    <th className={styles.thStyle}>Report Type</th>
+                    <th className={styles.thStyle}>Format</th>
+                    <th className={styles.thStyle}>Date From</th>
+                    <th className={styles.thStyle}>Date To</th>
+                    <th className={styles.thStyle}>Shift From</th>
+                    <th className={styles.thStyle}>Shift To</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td className={styles.tdStyle}>
+                        <select value={reportType} onChange={e => setReportType(e.target.value)}>
+                            <option value="mesin">Mesin</option>
+                            <option value="operator">Operator</option>
+                        </select>
+                    </td>
+                    <td className={styles.tdStyle}>
+                        <select value={format} onChange={e => setFormat(e.target.value)}>
+                            <option value="imn_dashboard">IMN</option>
+                            <option value="limax_dashboard">Limax</option>
+                        </select>
+                    </td>
+                    <td className={styles.tdStyle}>
+                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                    </td>
+                    <td className={styles.tdStyle}>
+                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                    </td>
+                    <td className={styles.tdStyle}>
+                        <input type="number" min="1" max="3" value={shiftFrom} onChange={e => setShiftFrom(parseInt(e.target.value, 10))} />
+                    </td>
+                    <td className={styles.tdStyle}>
+                        <input type="number" min="1" max="3" value={shiftTo} onChange={e => setShiftTo(parseInt(e.target.value, 10))} />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    );
+
+
     return (
         <div>
             <h1>{reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</h1>
-            <select value={reportType} onChange={e => setReportType(e.target.value)}>
-                <option value="operator">Operator</option>
-                <option value="mesin">Mesin</option>
-            </select>
-            <select value={format} onChange={e => setFormat(e.target.value)}>
-                <option value="limax_dashboard">Limax Dashboard</option>
-                <option value="imn_dashboard">IMN Dashboard</option>
-            </select>
+            <div className={styles.inputContainer}>{inputForm}</div>
 
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            <input type="number" min="1" max="3" value={shiftFrom} onChange={e => setShiftFrom(parseInt(e.target.value, 10))} />
-            <input type="number" min="1" max="3" value={shiftTo} onChange={e => setShiftTo(parseInt(e.target.value, 10))} />
             <button onClick={() => fetchReport(false)}>Show</button>
             {data.length > 0 && <DataTable columns={columns} data={data} />}
             {data.length > 0 && (
