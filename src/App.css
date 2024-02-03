@@ -49,10 +49,10 @@
   margin-right: 50px;
 }
 
-.table-container {
+/* .table-container {
   max-height: 70vh;
   overflow-y: auto;
-}
+} */
 
 table {
   border-collapse: collapse;
@@ -105,4 +105,23 @@ select {
   color: #333;
   font-size: 1.2em;
   font-weight: bold;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border-left-color: #09f;
+  animation: spin 1s ease infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }

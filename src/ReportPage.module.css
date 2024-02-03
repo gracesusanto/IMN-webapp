@@ -1,0 +1,38 @@
+.tableStyle {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.thStyle,
+.tdStyle {
+    text-align: left;
+    padding: 8px;
+    /* Adjust padding as needed */
+    border-bottom: 1px solid #ddd;
+    /* Optional: adds a line between rows */
+}
+
+/* For header row */
+.thStyle {
+    background-color: #fff;
+    /* White background */
+    color: black;
+    font-weight: bold;
+}
+
+/* For input cells */
+.tdStyle {
+    padding: 4px;
+    /* Reduced padding for a more "collapsed" look */
+}
+
+/* For the select and input fields */
+.tdStyle select,
+.tdStyle input {
+    width: 100%;
+    box-sizing: border-box;
+    /* Ensures padding doesn't affect overall width */
+    margin: 0;
+    /* Removes default margin */
+}

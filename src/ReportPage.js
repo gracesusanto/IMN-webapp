@@ -17,8 +17,11 @@ const ReportPage = () => {
     const [shiftFrom, setShiftFrom] = useState(1);
     const [shiftTo, setShiftTo] = useState(3);
     const [data, setData] = useState([]);
+    const [isLoading, setIsLoading] = useState(false); // State to handle loading status
+
 
     const fetchReport = async (download = false) => {
+        setIsLoading(true); // Start loading
         let requestFormat = format;
         if (download) {
             // Remove '_dashboard' suffix for download format
@@ -62,6 +65,8 @@ const ReportPage = () => {
             }
         } catch (error) {
             console.error('Error fetching report:', error);
+        } finally {
+            setIsLoading(false); // Stop loading whether or not there was an error
         }
     };
 
@@ -123,6 +128,9 @@ const ReportPage = () => {
             <div className={styles.inputContainer}>{inputForm}</div>
 
             <button onClick={() => fetchReport(false)}>Show</button>
+
+            {isLoading ? <div className={styles.spinner}></div> : null}
+
             {data.length > 0 && <DataTable columns={columns} data={data} />}
             {data.length > 0 && (
                 <button onClick={() => fetchReport(true)}>Download Report</button>
