@@ -186,16 +186,18 @@ const ReportPage = () => {
                                                     <input
                                                         className={styles.inputField}
                                                         type="number"
+                                                        step="0.01"
                                                         placeholder="Min"
                                                         value={filters[filterType]?.gt || ''}
-                                                        onChange={(e) => handleFilterChange(filterType, 'gt', parseInt(e.target.value, 10))}
+                                                        onChange={(e) => handleFilterChange(filterType, 'gt', parseFloat(e.target.value))}
                                                     />
                                                     <input
                                                         className={styles.inputField}
                                                         type="number"
+                                                        step="0.01"
                                                         placeholder="Max"
                                                         value={filters[filterType]?.lt || ''}
-                                                        onChange={(e) => handleFilterChange(filterType, 'lt', parseInt(e.target.value, 10))}
+                                                        onChange={(e) => handleFilterChange(filterType, 'lt', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                             </div>
