@@ -37,14 +37,166 @@
     /* Removes default margin */
 }
 
-.spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border-left-color: #09f;
-    animation: spin 1s ease infinite;
+.mainContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
 }
+
+/* Container for the filter button only */
+.filterButtonContainer {
+    display: flex;
+    justify-content: flex-end;
+    /* Aligns the button to the right */
+    width: 100%;
+    /* Ensures this container spans the full width */
+    padding-right: 10px;
+    /* Ensures padding on the right */
+}
+
+/* Base container for filters, ensures padding and background */
+.filterContainer {
+    background-color: #f2f2f2;
+    /* Sets background to light grey */
+    padding: 10px;
+    /* Reduces padding for a more compact layout */
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    /* Aligns children vertically */
+    justify-content: flex-end;
+    /* Aligns the container to the right */
+    flex-wrap: wrap;
+    /* Allows children to wrap onto the next line */
+    margin-left: auto;
+    /* Pushes the container to the right */
+    width: fit-content;
+    /* Reduces the width to fit the content */
+    margin-bottom: 20px;
+}
+
+/* Individual filter section styling */
+.filterSection {
+    margin: 5px;
+    /* Reduced margin for a tighter layout */
+    background-color: white;
+    /* Background color for the section */
+    border: 1px solid #ddd;
+    /* Border for the section */
+    border-radius: 5px;
+    /* Rounded corners for the section */
+    overflow: hidden;
+    /* Ensures the children do not overflow the rounded corners */
+    display: flex;
+    align-items: center;
+    /* Aligns children of the section vertically */
+}
+
+/* Header within the filter section */
+.filterSection h4 {
+    background-color: #e7e7e7;
+    /* Slightly darker grey for the header */
+    color: #333;
+    /* Color for the text */
+    padding: 5px 10px;
+    /* Padding for the header */
+    margin: 0;
+    /* Removes default margin */
+    flex-shrink: 0;
+    /* Prevents the header from shrinking */
+}
+
+/* Adjustments to filter inputs for a more compact design */
+.inputField {
+    width: 50px;
+    /* Fixed width for small inputs */
+    border: none;
+    /* Removes border */
+    padding: 5px;
+    /* Padding inside the input */
+    margin: 5px;
+    /* Margin around the input */
+}
+
+/* Styling for the 'Apply Filters' button container */
+.applyFiltersContainer {
+    padding: 5px;
+    flex-grow: 1;
+    display: flex;
+    justify-content: flex-end;
+    /* Aligns the button to the right */
+}
+
+/* Styling for the 'Apply Filters' button */
+.applyFiltersButton {
+    background-color: #28a745;
+    /* Button color */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.applyFiltersButton:hover {
+    background-color: #218838;
+    /* Darker green on hover */
+}
+
+/* Ensures the filter toggle button is not too wide */
+.filterButton {
+    padding: 8px 16px;
+    /* Adjust padding to reduce size */
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px;
+    /* Margin around the button */
+}
+
+.filterButton:hover {
+    background-color: #0056b3;
+}
+
+/* Styling for the 'Reset Filters' button */
+.resetFiltersButton {
+    background-color: #dc3545;
+    /* Button color */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+    /* Space between the reset and apply buttons */
+}
+
+.resetFiltersButton:hover {
+    background-color: #c82333;
+    /* Darker red on hover */
+}
+
+/* Ensure 'Apply Filters' button styling allows for another button next to it */
+.applyFiltersButton {
+    /* Existing styles remain unchanged */
+    margin-left: 10px;
+    /* Space between the reset and apply buttons */
+}
+
+/* Centering the spinner */
+.spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    /* Adjust height as necessary */
+}
+
 
 @keyframes spin {
     0% {

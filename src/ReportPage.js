@@ -18,6 +18,32 @@ const ReportPage = () => {
     const [shiftTo, setShiftTo] = useState(3);
     const [data, setData] = useState([]);
     const [isLoading, setIsLoading] = useState(false); // State to handle loading status
+    const [showFilters, setShowFilters] = useState(false); // To toggle filter form visibility
+    const [filters, setFilters] = useState({
+        "Reject Ratio": { gt: null, lt: null },
+        "Rework Ratio": { gt: null, lt: null },
+        "Productivity": { gt: null, lt: null },
+    });
+
+    // Handler to update filter states
+    const handleFilterChange = (filterName, condition, value) => {
+        setFilters((prevFilters) => ({
+            ...prevFilters,
+            [filterName]: {
+                ...prevFilters[filterName],
+                [condition]: value,
+            },
+        }));
+    };
+
+    const resetFilters = () => {
+        // Assuming you have a state 'filters' that keeps track of all filter values
+        setFilters({
+            'Productivity': { gt: null, lt: null },
+            'Reject Ratio': { gt: null, lt: null },
+            'Rework Ratio': { gt: null, lt: null },
+        });
+    }
 
 
     const fetchReport = async (download = false) => {
@@ -33,7 +59,8 @@ const ReportPage = () => {
             date_from: dateFrom,
             shift_from: shiftFrom,
             date_to: dateTo,
-            shift_to: shiftTo
+            shift_to: shiftTo,
+            filters: filters,
         };
 
         console.log('Sending request to /report/', reportType, 'with data:', requestData);
@@ -127,15 +154,75 @@ const ReportPage = () => {
             <h1>{reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</h1>
             <div className={styles.inputContainer}>{inputForm}</div>
 
-            <button onClick={() => fetchReport(false)}>Show</button>
+            <button onClick={() => { resetFilters(); fetchReport(false); }}>Show</button>
 
-            {isLoading ? <div className={styles.spinner}></div> : null}
+            <div className={styles.mainContainer}>
+                {/* Conditionally render the spinner */}
+                {isLoading && (
+                    <div className={styles.spinnerContainer}>
+                        <div className={styles.spinner}></div>
+                    </div>
+                )}
 
-            {data.length > 0 && <DataTable columns={columns} data={data} />}
-            {data.length > 0 && (
-                <button onClick={() => fetchReport(true)}>Download Report</button>
-            )}
-        </div>
+                {/* Conditionally render the table and filter */}
+                {!isLoading && (
+                    <div>
+                        {/* Toggle Filters button */}
+                        <div className={styles.filterButtonContainer}>
+                            <button className={styles.filterButton} onClick={() => setShowFilters(!showFilters)}>
+                                {showFilters ? 'Close Filters' : 'Filters'}
+                            </button>
+                        </div>
+                        <div className={styles.filterContainer}>
+                            {/* Filter form */}
+                            {showFilters && (
+                                <div style={{ width: '100%' }}> {/* Ensures the filters take full width */}
+                                    <div className={styles.filterSection}>
+                                        {/* Map through each filter type and create its section */}
+                                        {['Productivity', 'Reject Ratio', 'Rework Ratio'].map((filterType) => (
+                                            <div className={styles.filterSection} key={filterType}>
+                                                <h4>{filterType}</h4>
+                                                <div>
+                                                    <input
+                                                        className={styles.inputField}
+                                                        type="number"
+                                                        placeholder="Min"
+                                                        value={filters[filterType]?.gt || ''}
+                                                        onChange={(e) => handleFilterChange(filterType, 'gt', parseInt(e.target.value, 10))}
+                                                    />
+                                                    <input
+                                                        className={styles.inputField}
+                                                        type="number"
+                                                        placeholder="Max"
+                                                        value={filters[filterType]?.lt || ''}
+                                                        onChange={(e) => handleFilterChange(filterType, 'lt', parseInt(e.target.value, 10))}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Apply Filters Button */}
+                                    <div className={styles.applyFiltersContainer}>
+                                        <button className={styles.resetFiltersButton} onClick={() => resetFilters()}>Reset Filters</button>
+                                        <button className={styles.applyFiltersButton} onClick={() => fetchReport(false)}>Apply Filters</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Data table and download report button */}
+                {!isLoading && data.length > 0 && (
+                    <>
+                        <DataTable columns={columns} data={data} />
+                        <button className={styles.filterButton} onClick={() => fetchReport(true)}>Download Report</button>
+                    </>
+                )}
+            </div>
+
+
+        </div >
     );
 };
 
