@@ -24,6 +24,10 @@ const ReportPage = () => {
         "Rework Ratio": { gt: null, lt: null },
         "Productivity": { gt: null, lt: null },
     });
+    const [sortConfig, setSortConfig] = useState({
+        sort_by: null,  // The field name to sort by
+        direction: 'ascending'  // The direction to sort
+    });
 
     // Handler to update filter states
     const handleFilterChange = (filterName, condition, value) => {
@@ -46,13 +50,15 @@ const ReportPage = () => {
     }
 
 
-    const fetchReport = async (download = false) => {
+    const fetchReport = async (download = false, sortConfigOverride = null) => {
         setIsLoading(true); // Start loading
         let requestFormat = format;
         if (download) {
             // Remove '_dashboard' suffix for download format
             requestFormat = format.replace('_dashboard', '');
         }
+
+        const effectiveSortConfig = sortConfigOverride !== null ? sortConfigOverride : sortConfig;
 
         const requestData = {
             format: requestFormat,
@@ -62,6 +68,10 @@ const ReportPage = () => {
             shift_to: shiftTo,
             filters: filters,
         };
+
+        if (effectiveSortConfig && effectiveSortConfig.sort_by) {
+            requestData.sort = effectiveSortConfig;
+        }
 
         console.log('Sending request to /report/', reportType, 'with data:', requestData);
 
@@ -164,55 +174,95 @@ const ReportPage = () => {
                     </div>
                 )}
 
-                {/* Conditionally render the table and filter */}
-                {!isLoading && (
-                    <div>
-                        {/* Toggle Filters button */}
-                        <div className={styles.filterButtonContainer}>
-                            <button className={styles.filterButton} onClick={() => setShowFilters(!showFilters)}>
-                                {showFilters ? 'Close Filters' : 'Filters'}
-                            </button>
-                        </div>
-                        <div className={styles.filterContainer}>
-                            {/* Filter form */}
-                            {showFilters && (
-                                <div style={{ width: '100%' }}> {/* Ensures the filters take full width */}
-                                    <div className={styles.filterSection}>
-                                        {/* Map through each filter type and create its section */}
-                                        {['Productivity', 'Reject Ratio', 'Rework Ratio'].map((filterType) => (
-                                            <div className={styles.filterSection} key={filterType}>
-                                                <h4>{filterType}</h4>
-                                                <div>
-                                                    <input
-                                                        className={styles.inputField}
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder="Min"
-                                                        value={filters[filterType]?.gt || ''}
-                                                        onChange={(e) => handleFilterChange(filterType, 'gt', parseFloat(e.target.value))}
-                                                    />
-                                                    <input
-                                                        className={styles.inputField}
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder="Max"
-                                                        value={filters[filterType]?.lt || ''}
-                                                        onChange={(e) => handleFilterChange(filterType, 'lt', parseFloat(e.target.value))}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {/* Apply Filters Button */}
-                                    <div className={styles.applyFiltersContainer}>
-                                        <button className={styles.resetFiltersButton} onClick={() => resetFilters()}>Reset Filters</button>
-                                        <button className={styles.applyFiltersButton} onClick={() => fetchReport(false)}>Apply Filters</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                {/* Filter and Sort Container */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem' }}>
+                    <div className={styles.sortingControls}>
+                        {/* Sort By dropdown */}
+                        <select
+                            className={styles.sortBySelect}
+                            onChange={(e) => {
+                                const selectedSortField = e.target.value;
+                                setSortConfig(prevConfig => {
+                                    const newConfig = {
+                                        ...prevConfig,
+                                        sort_by: selectedSortField !== "" ? selectedSortField : null, // Set to null if "Select Sort Field" is chosen
+                                        // Optionally reset direction to 'ascending' or keep the previous direction
+                                    };
+                                    fetchReport(false, newConfig.sort_by ? newConfig : null); // Only pass sortConfig if a field is selected
+                                    return newConfig;
+                                });
+                            }}
+                            value={sortConfig.sort_by || ''}
+                        >
+                            <option value="">Sort By...</option>
+                            <option value="Productivity">Productivity</option>
+                            <option value="Reject Ratio">Reject Ratio</option>
+                            <option value="Rework Ratio">Rework Ratio</option>
+                        </select>
+
+                        {/* Button to Toggle Sort Direction */}
+                        <button
+                            onClick={() => {
+                                setSortConfig(prevConfig => {
+                                    const newDirection = prevConfig.direction === 'ascending' ? 'descending' : 'ascending';
+                                    const newConfig = { ...prevConfig, direction: newDirection };
+                                    fetchReport(false, newConfig); // Pass the new sort config to fetchReport
+                                    return newConfig;
+                                });
+                            }}
+                            className={styles.sortDirectionToggle}
+                        >
+                            {sortConfig.direction === 'ascending' ? '↑ Asc' : '↓ Desc'}
+                        </button>
                     </div>
-                )}
+                    {/* Filters button */}
+                    <button className={styles.filterButton} onClick={() => setShowFilters(!showFilters)}>
+                        {showFilters ? 'Close Filters' : 'Filters'}
+                    </button>
+                </div>
+
+
+                {/* Conditionally render the table and filter */}
+                <div>
+                    <div className={styles.filterContainer}>
+                        {/* Filter form */}
+                        {showFilters && (
+                            <div style={{ width: '100%' }}> {/* Ensures the filters take full width */}
+                                <div className={styles.filterSection}>
+                                    {/* Map through each filter type and create its section */}
+                                    {['Productivity', 'Reject Ratio', 'Rework Ratio'].map((filterType) => (
+                                        <div className={styles.filterSection} key={filterType}>
+                                            <h4>{filterType}</h4>
+                                            <div>
+                                                <input
+                                                    className={styles.inputField}
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="Min"
+                                                    value={filters[filterType]?.gt || ''}
+                                                    onChange={(e) => handleFilterChange(filterType, 'gt', parseFloat(e.target.value))}
+                                                />
+                                                <input
+                                                    className={styles.inputField}
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="Max"
+                                                    value={filters[filterType]?.lt || ''}
+                                                    onChange={(e) => handleFilterChange(filterType, 'lt', parseFloat(e.target.value))}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Apply Filters Button */}
+                                <div className={styles.applyFiltersContainer}>
+                                    <button className={styles.resetFiltersButton} onClick={() => resetFilters()}>Reset Filters</button>
+                                    <button className={styles.applyFiltersButton} onClick={() => fetchReport(false)}>Apply Filters</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 {/* Data table and download report button */}
                 {!isLoading && data.length > 0 && (

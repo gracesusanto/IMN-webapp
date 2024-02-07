@@ -147,15 +147,17 @@
 
 /* Ensures the filter toggle button is not too wide */
 .filterButton {
-    padding: 8px 16px;
-    /* Adjust padding to reduce size */
     background-color: #007bff;
+    /* Styling to match your theme */
     color: white;
     border: none;
+    padding: 5px 10px;
     border-radius: 5px;
+    /* Consistent with your button styles */
     cursor: pointer;
-    margin: 5px;
-    /* Margin around the button */
+    margin-left: 10px;
+    /* More space from the sorting controls for distinction */
+    /* Additional styles as needed... */
 }
 
 .filterButton:hover {
@@ -187,6 +189,44 @@
     margin-left: 10px;
     /* Space between the reset and apply buttons */
 }
+
+.sortingControls {
+    background-color: #f3f3f3;
+    /* Shared background to group sort controls */
+    border: 1px solid #ccc;
+    /* Border to visually group them */
+    border-radius: 5px;
+    /* Rounded corners for aesthetics */
+    display: flex;
+    /* Aligns children inline */
+    align-items: center;
+    /* Aligns children vertically */
+    padding: 5px;
+    /* Padding inside the grouping */
+}
+
+.sortBySelect {
+    border: none;
+    /* Removes individual border from the select */
+    background-color: transparent;
+    /* Background to match the sortingControls group */
+    margin-right: 5px;
+    /* Space between the select and the toggle button */
+}
+
+.sortDirectionToggle {
+    background-color: #007bff;
+    /* Styling to match your theme */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    /* Consistent with your button styles */
+    cursor: pointer;
+    /* Additional styles as needed... */
+}
+
+
 
 /* Centering the spinner */
 .spinner {
