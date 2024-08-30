@@ -38,3 +38,13 @@
     margin-top: 10px;
     color: #28a745;
 }
+
+.input-error {
+    border-color: red; /* Highlight fields with errors */
+}
+
+.error-message {
+    color: red; /* Style for error messages */
+    font-size: 0.8rem;
+    margin-top: 2px;
+}

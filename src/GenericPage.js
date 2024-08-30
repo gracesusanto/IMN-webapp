@@ -10,6 +10,7 @@ const GenericPage = ({ apiUrl, model, formFields, csvFormat, dataColumns, button
     const [data, setData] = useState([]);
     const [currentItem, setCurrentItem] = useState({ id: '', ...formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {}) });
     const [message, setMessage] = useState(""); // For success or error messages
+    const [errors, setErrors] = useState({});
 
     // Fetch data from the API
     const fetchData = () => {
@@ -35,9 +36,19 @@ const GenericPage = ({ apiUrl, model, formFields, csvFormat, dataColumns, button
             fetchData(); // Refetch data
             setMessage(`Data ${response.data.id} added successfully!`);
             setCurrentItem(formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {}));
+            setErrors({}); // Clear errors if the submission is successful
         } catch (error) {
             console.error(`Error submitting ${model}:`, error);
-            setMessage(`Error adding ${model}: ${error}`);
+            setMessage('');
+            if (error.response && error.response.data && error.response.data.detail) {
+                const formErrors = error.response.data.detail.reduce((acc, err) => {
+                    acc[err.loc[1]] = err.msg;
+                    return acc;
+                }, {});
+                setErrors(formErrors); // Store errors to display on the form
+            } else {
+                setMessage(`Error adding ${model}: ${error.message}`);
+            }
         }
     };
 
@@ -116,6 +127,7 @@ const GenericPage = ({ apiUrl, model, formFields, csvFormat, dataColumns, button
                     handleSubmit={handleSubmit}
                     message={{ text: message, buttonText: buttonText }}
                     fields={formFields}
+                    errors={errors}
                 />
             </div>
             <div className="section-container">
