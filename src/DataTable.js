@@ -1,103 +1,61 @@
-// src/DataTable.js
-import React, { useMemo } from 'react';
-import { useTable, useFilters, usePagination } from 'react-table';
+import * as React from "react";
+import { DataGrid } from "@mui/x-data-grid";
+import { Box } from "@mui/material";
 
-const DefaultColumnFilter = ({ column: { filterValue, preFilteredRows, setFilter } }) => {
-    const count = preFilteredRows.length;
+/**
+ * Adapter: your pages pass react-table style columns:
+ *  - { Header, accessor, Cell? }
+ * We convert to MUI columns:
+ *  - { field, headerName, flex/width, renderCell? }
+ */
+function toMuiColumns(columns) {
+  return (columns || []).map((c) => {
+    const field = c.accessor || c.id; // accessor is what your code uses
+    return {
+      field,
+      headerName: c.Header ?? field,
+      flex: 1,
+      minWidth: 120,
+      sortable: true,
+      filterable: true,
+      resizable: true, // MUI will allow resizing in newer versions
+      renderCell: c.Cell
+        ? (params) => c.Cell({ value: params.value, row: { original: params.row } })
+        : undefined,
+    };
+  });
+}
 
-    return (
-        <input
-            value={filterValue || ''}
-            onChange={e => {
-                setFilter(e.target.value || undefined); // Set undefined to remove the filter entirely
-            }}
-            placeholder={`Search ${count} records...`}
-        />
-    );
-};
+export default function DataTable({ columns, data }) {
+  const muiColumns = React.useMemo(() => toMuiColumns(columns), [columns]);
 
-export const DataTable = ({ columns, data }) => {
-    const defaultColumn = useMemo(() => ({ Filter: DefaultColumnFilter }), []);
-    const {
-        getTableProps,
-        getTableBodyProps,
-        headerGroups,
-        prepareRow,
-        page,
-        canPreviousPage,
-        canNextPage,
-        pageOptions,
-        nextPage,
-        previousPage,
-        setPageSize,
-        state: { pageIndex, pageSize },
-    } = useTable({ columns, data, defaultColumn },
-        useFilters, // useFilters!
-        usePagination // usePagination!
-    );
+  // DataGrid expects each row to have a stable `id` field
+  const rows = React.useMemo(() => {
+    return (data || []).map((r, idx) => {
+      if (r && (r.id !== undefined && r.id !== null)) return r;
+      return { id: idx, ...r }; // fallback if API data doesn’t include id
+    });
+  }, [data]);
 
-    // Render the UI for your table
-    return (
-        <>
-            <div className="table-container">
-                <table {...getTableProps()}>
-                    <thead>
-                        {headerGroups.map(headerGroup => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map(column => (
-                                    <th {...column.getHeaderProps()}>
-                                        {column.render('Header')}
-                                        <div>{column.canFilter ? column.render('Filter') : null}</div>
-                                        {/* <span>
-                                            {column.isSorted ? (column.isSortedDesc ? ' 🔽' : ' 🔼') : ''}
-                                        </span> */}
-                                    </th>
-                                ))}
-                            </tr>
-                        ))}
-                    </thead>
-                    <tbody {...getTableBodyProps()}>
-                        {page.map(row => {
-                            prepareRow(row);
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map(cell => {
-                                        return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>;
-                                    })}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div >
-            <div style={{ textAlign: 'center', marginTop: '10px' }}>
-                <button onClick={() => previousPage()} disabled={!canPreviousPage}>
-                    {'<'}
-                </button>
-                <button onClick={() => nextPage()} disabled={!canNextPage}>
-                    {'>'}
-                </button>
-                <span style={{ margin: '0 10px' }}>
-                    Page{' '}
-                    <strong>
-                        {pageIndex + 1} of {pageOptions.length}
-                    </strong>{' '}
-                </span>
-                <select
-                    value={pageSize}
-                    onChange={e => {
-                        setPageSize(Number(e.target.value));
-                    }}
-                >
-                    {[10, 20, 30, 40, 50].map(pageSize => (
-                        <option key={pageSize} value={pageSize}>
-                            Show {pageSize}
-                        </option>
-                    ))}
-                </select>
-            </div>
-        </>
-    );
-};
-
-export default DataTable;
+  return (
+    <Box sx={{ width: "100%" }}>
+      <DataGrid
+        rows={rows}
+        columns={muiColumns}
+        autoHeight
+        disableRowSelectionOnClick
+        pagination
+        initialState={{
+          pagination: { paginationModel: { pageSize: 20, page: 0 } },
+        }}
+        pageSizeOptions={[10, 20, 50, 100]}
+        density="compact"
+        sx={{
+          border: 0,
+          "& .MuiDataGrid-columnHeaders": { borderBottom: "1px solid rgba(224,224,224,1)" },
+          "& .MuiDataGrid-cell": { borderBottom: "1px solid rgba(224,224,224,1)" },
+        }}
+      />
+    </Box>
+  );
+}
