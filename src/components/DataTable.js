@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import {
   DataGrid,
 } from "@mui/x-data-grid";
@@ -25,6 +25,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import './DataTable.css';
 
 /**
  * Analyze column content lengths and return statistics
@@ -86,36 +87,9 @@ function analyzeColumnStats(data, field) {
 /**
  * Log column statistics to console for analysis
  */
-function logColumnStatistics(data, columns) {
-  console.log('📊 COLUMN CONTENT LENGTH ANALYSIS');
-  console.log('=====================================');
-
-  const stats = columns.map(c => {
-    const field = c.accessor || c.id;
-    return analyzeColumnStats(data, field);
-  });
-
-  stats.forEach(stat => {
-    console.log(`\n🔸 Column: ${stat.field}`);
-    console.log(`   Rows analyzed: ${stat.count}`);
-    console.log(`   Average length: ${stat.average} characters`);
-    console.log(`   Median (50th percentile): ${stat.median} characters`);
-    console.log(`   60th percentile: ${stat.percentile60} characters`);
-    console.log(`   75th percentile: ${stat.percentile75} characters`);
-    console.log(`   90th percentile: ${stat.percentile90} characters`);
-    console.log(`   Range: ${stat.min} - ${stat.max} characters`);
-    console.log(`   Recommended width: ${stat.percentile75 * 7 + 24}px (75th percentile, compact)`);
-  });
-
-  // Summary table
-  console.log('\n📋 SUMMARY TABLE');
-  console.table(stats.map(s => ({
-    Column: s.field,
-    'Avg Chars': s.average,
-    '60th %ile': s.percentile60,
-    '75th %ile': s.percentile75,
-    'Compact Width (px)': Math.min(180, Math.max(70, s.percentile60 * 7 + 24))
-  })));
+function logColumnStatistics() {
+  // Column statistics logging removed to prevent console spam
+  // This function is kept for the showColumnStats prop but outputs nothing
 }
 
 /**
@@ -174,8 +148,6 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
   const totalCompactWidth = compactWidths.reduce((total, col) => total + col.compactWidth, 0);
   const shouldUseCompactMode = totalCompactWidth > containerWidth * 0.95; // Use 95% threshold
 
-  console.log(`📐 Table width analysis: ${totalCompactWidth}px total vs ${containerWidth}px container = ${shouldUseCompactMode ? 'COMPACT' : 'FULL WIDTH'} mode`);
-
   const dataColumns = (columns || []).map((c, index) => {
     const field = c.accessor || c.id;
     const header = c.Header || field;
@@ -219,8 +191,7 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
   const isModelTable = ['tooling', 'operator', 'mesin'].includes(normalizedModelType);
   const hasActionHandlers = typeof handleEdit === 'function' && typeof confirmDelete === 'function';
 
-  // Debug logging
-  console.log('DataTable modelType:', modelType, 'normalized:', normalizedModelType, 'isModelTable:', isModelTable, 'hasActionHandlers:', hasActionHandlers);
+  // Debug logging removed to prevent console spam during form input
 
   // Check if there's already an actions column from the original GenericPage pattern
   const hasExistingActions = dataColumns.some(col =>
@@ -367,10 +338,65 @@ function ColumnVisibilityDialog({ open, onClose, columns, columnVisibilityModel,
     onColumnVisibilityChange(newModel);
   };
 
+  const handleSelectAll = () => {
+    const newModel = {};
+    columns.forEach((col) => {
+      const field = col.accessor || col.id;
+      newModel[field] = true;
+    });
+    onColumnVisibilityChange(newModel);
+  };
+
+  const handleUnselectAll = () => {
+    const newModel = {};
+    columns.forEach((col) => {
+      const field = col.accessor || col.id;
+      newModel[field] = false;
+    });
+    onColumnVisibilityChange(newModel);
+  };
+
+  // Count visible columns
+  const visibleCount = columns.filter((col) => {
+    const field = col.accessor || col.id;
+    return columnVisibilityModel[field] ?? true;
+  }).length;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Show/Hide Columns</DialogTitle>
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">Show/Hide Columns</Typography>
+          <Chip
+            label={`${visibleCount} of ${columns.length} visible`}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </Stack>
+      </DialogTitle>
       <DialogContent>
+        {/* Bulk Action Buttons */}
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleSelectAll}
+            disabled={visibleCount === columns.length}
+          >
+            Select All
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleUnselectAll}
+            disabled={visibleCount === 0}
+          >
+            Unselect All
+          </Button>
+        </Stack>
+
+        {/* Column Checkboxes */}
         <Stack spacing={1}>
           {columns.map((col) => {
             const field = col.accessor || col.id;
@@ -506,7 +532,6 @@ function BarcodeDialog({ open, onClose, modelType, recordId, getBarcodeUrl }) {
     if (open && recordId && getBarcodeUrl) {
       // Generate URL only once when dialog opens
       const barcodeUrl = getBarcodeUrl(recordId);
-      console.log('Dialog opened, loading barcode:', barcodeUrl);
 
       setLoading(true);
       setError(null);
@@ -516,14 +541,12 @@ function BarcodeDialog({ open, onClose, modelType, recordId, getBarcodeUrl }) {
       const img = new Image();
 
       const handleLoad = () => {
-        console.log('Image loaded successfully, updating state');
         setLoading(false);
         setError(null);
         setCurrentImage(barcodeUrl);
       };
 
       const handleError = () => {
-        console.log('Image failed to load');
         setLoading(false);
         setCurrentImage(null);
         setError(`Failed to load barcode for ${recordId}`);
@@ -596,7 +619,7 @@ function BarcodeDialog({ open, onClose, modelType, recordId, getBarcodeUrl }) {
 }
 
 
-export default function DataTable({
+function DataTable({
   columns,
   data,
   exportFileName,
@@ -619,7 +642,6 @@ export default function DataTable({
   const [searchValue, setSearchValue] = useState('');
   const [sortModel, setSortModel] = useState([]);
   const [filterModel, setFilterModel] = useState({ items: [] });
-  const [columnOrderModel, setColumnOrderModel] = useState([]);
 
   // Dialog states
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
@@ -665,41 +687,6 @@ export default function DataTable({
     item.value && item.value !== ''
   ).length;
 
-  // Handle column order change with debugging
-  const handleColumnOrderChange = useCallback((newOrder) => {
-    console.log('📋 Column order changed:', newOrder);
-    setColumnOrderModel(newOrder);
-  }, []);
-
-  // Initialize column visibility - hide less important columns by default
-  useEffect(() => {
-    if (columns && columns.length > 6) {
-      const initialVisibility = {};
-      columns.forEach(col => {
-        const field = col.accessor || col.id;
-        const header = col.Header || field;
-        const fieldLower = field.toLowerCase();
-        const headerLower = header.toLowerCase();
-
-        // Hide columns that are typically less important
-        if (
-          headerLower.includes('description') ||
-          headerLower.includes('note') ||
-          headerLower.includes('remark') ||
-          fieldLower.includes('desc') ||
-          fieldLower.includes('comment')
-        ) {
-          initialVisibility[field] = false;
-        }
-      });
-
-      // Only update if we have columns to hide and haven't set visibility yet
-      if (Object.keys(initialVisibility).length > 0 && Object.keys(columnVisibilityModel).length === 0) {
-        setColumnVisibilityModel(initialVisibility);
-      }
-    }
-  }, [columns, columnVisibilityModel]);
-
   // Detect actual container width
   useEffect(() => {
     const updateWidth = () => {
@@ -722,7 +709,7 @@ export default function DataTable({
   // Log column statistics for analysis (when requested)
   useEffect(() => {
     if (showColumnStats && data && data.length > 0 && columns) {
-      logColumnStatistics(data, columns);
+      logColumnStatistics();
     }
   }, [data, columns, showColumnStats]);
 
@@ -732,7 +719,7 @@ export default function DataTable({
     setBarcodeDialogOpen(true);
   }, []);
 
-  const muiColumns = useMemo(() => toMuiColumns(columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete), [columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete]);
+  const muiColumns = useMemo(() => toMuiColumns(columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete), [columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode]);
 
   const rows = useMemo(() => {
     const arr = data || [];
@@ -899,9 +886,9 @@ export default function DataTable({
         columns={muiColumns}
         getRowId={getRowId}
         disableRowSelectionOnClick
-        disableColumnReorder={false} // Enable column drag & drop reordering
+        disableColumnReorder={true} // Disable column drag & drop reordering
         disableColumnMenu={false} // Enable column menu with hide/show options
-        columnHeaderHeight={56} // Ensure adequate height for drag handles
+        columnHeaderHeight={56}
         getRowHeight={() => 'auto'} // Dynamic row height to accommodate wrapped text
         hideFooter={false} // Make sure footer is visible
         hideFooterPagination={false} // Ensure pagination is shown
@@ -916,171 +903,9 @@ export default function DataTable({
         onFilterModelChange={setFilterModel}
         sortModel={sortModel}
         onSortModelChange={setSortModel}
-        columnOrderModel={columnOrderModel}
-        onColumnOrderModelChange={handleColumnOrderChange}
+        className="imn-data-grid"
         sx={{
-          border: 0,
-          backgroundColor: "white",
-          borderRadius: 2,
-          boxShadow: 2,
           minWidth: totalColumnsWidth > containerWidth * 0.95 ? Math.max(600, totalColumnsWidth) : '100%', // Dynamic based on mode
-
-          // Header styling with color
-          "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: '#f8fafc', // Light blue-gray background
-            borderBottom: "2px solid #3b82f6", // Blue accent border
-            color: '#1e293b', // Dark slate text
-            fontWeight: 600,
-            fontSize: '0.875rem',
-          },
-
-          "& .MuiDataGrid-columnHeader": {
-            padding: '0 16px', // Consistent padding for headers
-            cursor: 'grab', // Indicate draggable columns
-            position: 'relative', // Allow for drag indicators
-            '&:hover': {
-              backgroundColor: '#f1f5f9', // Slightly darker on hover
-            },
-            '&:active': {
-              cursor: 'grabbing', // Show grabbing cursor when dragging
-            },
-            '&:first-of-type': {
-              paddingLeft: '20px', // Match first cell padding
-              paddingRight: '20px',
-            },
-            // Ensure drag area is not blocked
-            '& .MuiDataGrid-columnHeaderTitle': {
-              pointerEvents: 'auto',
-              flex: 1,
-            },
-            // Style for when column is being dragged
-            '&.MuiDataGrid-columnHeader--moving': {
-              backgroundColor: '#e0f2fe',
-              opacity: 0.8,
-            },
-          },
-
-          // Column drag placeholder
-          "& .MuiDataGrid-columnHeader--moving": {
-            backgroundColor: '#e0f2fe !important',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-          },
-
-          // Drag indicator styling
-          "& .MuiDataGrid-columnHeaderDraggableContainer": {
-            width: '100%',
-          },
-
-          // Column menu styling
-          "& .MuiDataGrid-columnMenuIcon": {
-            opacity: 0.6,
-            '&:hover': {
-              opacity: 1,
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            },
-          },
-
-          // Column separator styling for reordering
-          "& .MuiDataGrid-columnSeparator": {
-            '&:hover': {
-              color: '#3b82f6',
-            },
-            '&.MuiDataGrid-columnSeparator--resizing': {
-              color: '#3b82f6',
-            },
-          },
-
-          // Row styling with alternating colors
-          "& .MuiDataGrid-row": {
-            '&:nth-of-type(even)': {
-              backgroundColor: '#f8fafc', // Light background for even rows
-            },
-            '&:nth-of-type(odd)': {
-              backgroundColor: 'white', // White for odd rows
-            },
-            '&:hover': {
-              backgroundColor: '#e0f2fe !important', // Light blue hover
-              cursor: 'pointer',
-            },
-            borderBottom: "1px solid #e2e8f0", // Subtle border
-          },
-
-          // Cell styling with proper alignment for multi-line text
-          "& .MuiDataGrid-cell": {
-            borderBottom: "1px solid #e2e8f0", // Light gray border
-            display: 'flex',
-            alignItems: 'flex-start', // Align content to top for multi-line text
-            justifyContent: 'flex-start',
-            padding: '12px 16px', // More vertical padding for wrapped text
-            color: '#334155', // Slate gray text
-            overflow: 'visible', // Prevent content cropping
-            minHeight: '52px', // Minimum height to maintain table structure
-
-            '&:focus': {
-              outline: '2px solid #3b82f6', // Blue focus outline
-              outlineOffset: '-2px',
-            },
-
-            // First column specific styling to prevent cropping
-            '&:first-of-type': {
-              paddingLeft: '20px', // Extra padding for first column
-              paddingRight: '20px', // Ensure right padding too
-            },
-
-            // Ensure text content wraps properly
-            '& .MuiDataGrid-cellContent': {
-              overflow: 'visible',
-              textOverflow: 'initial',
-              whiteSpace: 'normal', // Allow text wrapping to multiple lines
-              width: '100%',
-              lineHeight: '1.4', // Better line spacing for multi-line text
-              wordBreak: 'break-word', // Break long words if needed
-            },
-          },
-
-          // Pagination styling
-          "& .MuiDataGrid-footerContainer": {
-            backgroundColor: '#f8fafc',
-            borderTop: "1px solid #e2e8f0",
-            color: '#64748b',
-          },
-
-          // Toolbar styling
-          "& .MuiDataGrid-toolbarContainer": {
-            backgroundColor: '#f8fafc !important',
-            borderBottom: "1px solid #e2e8f0",
-            padding: '0 !important', // Remove default padding as our EnhancedToolbar has its own
-            minHeight: '60px',
-            display: 'block !important',
-            visibility: 'visible !important',
-          },
-
-          // Selected row styling
-          "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: '#dbeafe',
-            '&:hover': {
-              backgroundColor: '#bfdbfe',
-            },
-          },
-
-          // Scrollbar styling
-          "& .MuiDataGrid-virtualScroller": {
-            '&::-webkit-scrollbar': {
-              width: 8,
-              height: 8,
-            },
-            '&::-webkit-scrollbar-track': {
-              backgroundColor: '#f1f5f9',
-              borderRadius: 4,
-            },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#cbd5e1',
-              borderRadius: 4,
-              '&:hover': {
-                backgroundColor: '#94a3b8',
-              },
-            },
-          },
         }}
       />
 
@@ -1111,3 +936,7 @@ export default function DataTable({
     </Box>
   );
 }
+
+// Memoize the DataTable component to prevent unnecessary re-renders
+// when parent components re-render (e.g., during form input)
+export default memo(DataTable);

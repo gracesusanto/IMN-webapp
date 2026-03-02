@@ -4,6 +4,7 @@ import { Box, Button, Paper, Stack, Typography, CircularProgress } from "@mui/ma
 import DataTable from "./DataTable";
 import CsvUpload from "./CsvUpload";
 import GenericForm from "./GenericForm";
+import CacheManager from "./CacheManager"; // Cache debugging component
 import { useApi } from "../hooks/useApi";
 
 export default function GenericPage({
@@ -15,6 +16,7 @@ export default function GenericPage({
   buttonText,
 }) {
   // Use the useApi hook for all API operations
+  const apiInstance = useApi(model);
   const {
     data,
     loading,
@@ -25,8 +27,10 @@ export default function GenericPage({
     deleteItem,
     downloadBarcode,
     exportCsv,
-    getBarcodeUrl
-  } = useApi(model);
+    getBarcodeUrl,
+    clearCache,
+    refreshData
+  } = apiInstance;
 
   const [currentItem, setCurrentItem] = useState({
     id: "",
@@ -179,6 +183,14 @@ export default function GenericPage({
         </Typography>
         <CsvUpload onUploadSuccess={fetchData} uploadUrl={`${model}`} />
       </Paper>
+
+      {/* Cache Manager - For Development/Debugging */}
+      {process.env.NODE_ENV === 'development' && (
+        <CacheManager
+          useApiInstances={[{ ...apiInstance, modelName: model }]}
+          position="bottom-right"
+        />
+      )}
     </Stack>
   );
 }

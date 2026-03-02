@@ -1,0 +1,152 @@
+/* DataTable Component Styles */
+
+.imn-data-grid {
+  border: 0 !important;
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12) !important;
+}
+
+/* Header styling with color */
+.imn-data-grid .MuiDataGrid-columnHeaders {
+  background-color: #f8fafc !important; /* Light blue-gray background */
+  border-bottom: 2px solid #3b82f6 !important; /* Blue accent border */
+  color: #1e293b !important; /* Dark slate text */
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+}
+
+.imn-data-grid .MuiDataGrid-columnHeader {
+  padding: 0 16px !important; /* Consistent padding for headers */
+  position: relative !important;
+}
+
+.imn-data-grid .MuiDataGrid-columnHeader:hover {
+  background-color: #f1f5f9 !important; /* Slightly darker on hover */
+}
+
+.imn-data-grid .MuiDataGrid-columnHeader:first-of-type {
+  padding-left: 20px !important; /* Match first cell padding */
+  padding-right: 20px !important;
+}
+
+.imn-data-grid .MuiDataGrid-columnHeader .MuiDataGrid-columnHeaderTitle {
+  pointer-events: auto !important;
+  flex: 1 !important;
+}
+
+/* Column menu styling */
+.imn-data-grid .MuiDataGrid-columnMenuIcon {
+  opacity: 0.6 !important;
+}
+
+.imn-data-grid .MuiDataGrid-columnMenuIcon:hover {
+  opacity: 1 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Column separator styling */
+.imn-data-grid .MuiDataGrid-columnSeparator:hover {
+  color: #3b82f6 !important;
+}
+
+.imn-data-grid .MuiDataGrid-columnSeparator.MuiDataGrid-columnSeparator--resizing {
+  color: #3b82f6 !important;
+}
+
+/* Row styling with alternating colors */
+.imn-data-grid .MuiDataGrid-row:nth-of-type(even) {
+  background-color: #f8fafc !important; /* Light background for even rows */
+}
+
+.imn-data-grid .MuiDataGrid-row:nth-of-type(odd) {
+  background-color: white !important; /* White for odd rows */
+}
+
+.imn-data-grid .MuiDataGrid-row:hover {
+  background-color: #e0f2fe !important; /* Light blue hover */
+  cursor: pointer !important;
+}
+
+.imn-data-grid .MuiDataGrid-row {
+  border-bottom: 1px solid #e2e8f0 !important; /* Subtle border */
+}
+
+/* Cell styling with proper alignment for multi-line text */
+.imn-data-grid .MuiDataGrid-cell {
+  border-bottom: 1px solid #e2e8f0 !important; /* Light gray border */
+  display: flex !important;
+  align-items: flex-start !important; /* Align content to top for multi-line text */
+  justify-content: flex-start !important;
+  padding: 12px 16px !important; /* More vertical padding for wrapped text */
+  color: #334155 !important; /* Slate gray text */
+  overflow: visible !important; /* Prevent content cropping */
+  min-height: 52px !important; /* Minimum height to maintain table structure */
+}
+
+.imn-data-grid .MuiDataGrid-cell:focus {
+  outline: 2px solid #3b82f6 !important; /* Blue focus outline */
+  outline-offset: -2px !important;
+}
+
+/* First column specific styling to prevent cropping */
+.imn-data-grid .MuiDataGrid-cell:first-of-type {
+  padding-left: 20px !important; /* Extra padding for first column */
+  padding-right: 20px !important; /* Ensure right padding too */
+}
+
+/* Ensure text content wraps properly */
+.imn-data-grid .MuiDataGrid-cell .MuiDataGrid-cellContent {
+  overflow: visible !important;
+  text-overflow: initial !important;
+  white-space: normal !important; /* Allow text wrapping to multiple lines */
+  width: 100% !important;
+  line-height: 1.4 !important; /* Better line spacing for multi-line text */
+  word-break: break-word !important; /* Break long words if needed */
+}
+
+/* Pagination styling */
+.imn-data-grid .MuiDataGrid-footerContainer {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+/* Toolbar styling */
+.imn-data-grid .MuiDataGrid-toolbarContainer {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 0 !important; /* Remove default padding as our EnhancedToolbar has its own */
+  min-height: 60px !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Selected row styling */
+.imn-data-grid .MuiDataGrid-row.Mui-selected {
+  background-color: #dbeafe !important;
+}
+
+.imn-data-grid .MuiDataGrid-row.Mui-selected:hover {
+  background-color: #bfdbfe !important;
+}
+
+/* Scrollbar styling */
+.imn-data-grid .MuiDataGrid-virtualScroller::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.imn-data-grid .MuiDataGrid-virtualScroller::-webkit-scrollbar-track {
+  background-color: #f1f5f9 !important;
+  border-radius: 4px !important;
+}
+
+.imn-data-grid .MuiDataGrid-virtualScroller::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1 !important;
+  border-radius: 4px !important;
+}
+
+.imn-data-grid .MuiDataGrid-virtualScroller::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8 !important;
+}

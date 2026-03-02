@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_CONFIG } from '../constants/config';
+import { getCachedData, setCachedData, clearModelCache, clearAllCache } from '../utils/cacheUtils';
 
 /**
  * Helper function to retry async operations with exponential backoff
@@ -50,13 +51,30 @@ export const useApi = (model) => {
 
   const apiUrl = `${API_CONFIG.BASE_URL}/${model}`;
 
-  // Fetch all data
-  const fetchData = useCallback(async () => {
+  // Fetch all data with enhanced caching and timestamp validation
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless force refresh is requested)
+    if (!forceRefresh) {
+      const cachedData = await getCachedData(model);
+      if (cachedData) {
+        setData(cachedData);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
+    console.log(`🌐 API CALL: Fetching ${model} data`);
+
     try {
       const response = await retryWithBackoff(() => axios.get(`${apiUrl}/`));
-      setData(response.data);
+      const responseData = response.data;
+
+      // Cache the response
+      setCachedData(model, responseData);
+      setData(responseData);
     } catch (err) {
       setError(`Error fetching ${model}: ${err.message}`);
       console.error(`Error fetching ${model}:`, err);
@@ -70,7 +88,11 @@ export const useApi = (model) => {
     setError(null);
     try {
       const response = await retryWithBackoff(() => axios.post(`${apiUrl}/`, itemData));
-      await fetchData(); // Refresh data
+
+      // Clear cache and refresh data
+      clearModelCache(model);
+      await fetchData(true); // Force refresh
+
       return { success: true, data: response.data };
     } catch (err) {
       const errorMessage = `Error adding ${model}: ${err.message}`;
@@ -94,7 +116,11 @@ export const useApi = (model) => {
     setError(null);
     try {
       const response = await retryWithBackoff(() => axios.put(`${apiUrl}/${id}`, itemData));
-      await fetchData(); // Refresh data
+
+      // Clear cache and refresh data
+      clearModelCache(model);
+      await fetchData(true); // Force refresh
+
       return { success: true, data: response.data };
     } catch (err) {
       const errorMessage = `Error updating ${model}: ${err.message}`;
@@ -108,7 +134,11 @@ export const useApi = (model) => {
     setError(null);
     try {
       await retryWithBackoff(() => axios.delete(`${apiUrl}/${id}`));
-      await fetchData(); // Refresh data
+
+      // Clear cache and refresh data
+      clearModelCache(model);
+      await fetchData(true); // Force refresh
+
       return { success: true };
     } catch (err) {
       const errorMessage = `Error deleting ${model}: ${err.message}`;
@@ -152,7 +182,11 @@ export const useApi = (model) => {
       await retryWithBackoff(() => axios.post(`${apiUrl}/upload_csv`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }));
-      await fetchData(); // Refresh data
+
+      // Clear cache and refresh data
+      clearModelCache(model);
+      await fetchData(true); // Force refresh
+
       return { success: true };
     } catch (err) {
       const errorMessage = `Error uploading CSV: ${err.message}`;
@@ -210,6 +244,10 @@ export const useApi = (model) => {
     fetchData();
   }, [fetchData]);
 
+  // Cache management utilities for this model
+  const clearCache = useCallback(() => clearModelCache(model), [model]);
+  const refreshData = useCallback(() => fetchData(true), [fetchData]);
+
   return {
     data,
     loading,
@@ -222,5 +260,9 @@ export const useApi = (model) => {
     uploadCsv,
     exportCsv,
     getBarcodeUrl,
+    // Cache management functions
+    clearCache,
+    refreshData,
+    clearAllCache, // Global cache clear function
   };
 };
