@@ -1,20 +1,33 @@
 import { useState, useEffect, useMemo } from "react";
-import axios from "axios";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, Typography, CircularProgress } from "@mui/material";
 
 import DataTable from "./DataTable";
 import CsvUpload from "./CsvUpload";
 import GenericForm from "./GenericForm";
+import { useApi } from "../hooks/useApi";
 
 export default function GenericPage({
-  apiUrl,
+  apiUrl, // Keep for backwards compatibility but we'll use useApi instead
   model,
   formFields,
   csvFormat,
   dataColumns,
   buttonText,
 }) {
-  const [data, setData] = useState([]);
+  // Use the useApi hook for all API operations
+  const {
+    data,
+    loading,
+    error,
+    fetchData,
+    createItem,
+    updateItem,
+    deleteItem,
+    downloadBarcode,
+    exportCsv,
+    getBarcodeUrl
+  } = useApi(model);
+
   const [currentItem, setCurrentItem] = useState({
     id: "",
     ...formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {}),
@@ -22,64 +35,47 @@ export default function GenericPage({
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
 
-  const fetchData = () => {
-    axios
-      .get(`${apiUrl}/${model}/`)
-      .then((response) => setData(response.data))
-      .catch((error) => {
-        console.error("Error fetching data: ", error);
-        setMessage(`Error fetching ${model}.`);
-      });
-  };
-
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await axios.post(`${apiUrl}/${model}/`, currentItem);
-      fetchData();
-      setMessage(`Data ${response.data.id} added successfully!`);
-      setCurrentItem(
-        formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {})
-      );
-      setErrors({});
+      const result = await createItem(currentItem);
+      if (result.success) {
+        setMessage(`Data ${result.data.id} added successfully!`);
+        setCurrentItem(
+          formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {})
+        );
+        setErrors({});
+      } else {
+        setMessage("");
+        if (result.errors) {
+          setErrors(result.errors);
+        } else {
+          setMessage(result.message || `Error adding ${model}`);
+        }
+      }
     } catch (error) {
       console.error(`Error submitting ${model}:`, error);
-      setMessage("");
-      if (error.response?.data?.detail) {
-        const formErrors = error.response.data.detail.reduce((acc, err) => {
-          acc[err.loc[1]] = err.msg;
-          return acc;
-        }, {});
-        setErrors(formErrors);
-      } else {
-        setMessage(`Error adding ${model}: ${error.message}`);
-      }
+      setMessage(`Error adding ${model}: ${error.message}`);
     }
   };
 
   const handleEdit = (item) => setCurrentItem(item);
 
-  const confirmDelete = (id) => {
+  const confirmDelete = async (id) => {
     const enteredId = window.prompt(`Enter the ID of the ${model} to delete (${id}):`);
     if (enteredId && enteredId === id) {
-      handleDelete(id);
-    } else {
+      try {
+        const result = await deleteItem(id);
+        if (result.success) {
+          window.alert(`Data ${id} deleted successfully!`);
+        } else {
+          window.alert(result.message || `Error deleting ${model} ${id}.`);
+        }
+      } catch (error) {
+        window.alert(`Error deleting ${model} ${id}.`);
+      }
+    } else if (enteredId) {
       window.alert(`The entered ID does not match the ${model} ID.`);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`${apiUrl}/${model}/${id}`);
-      fetchData();
-      window.alert(`Data ${id} deleted successfully!`);
-    } catch (error) {
-      window.alert(`Error deleting ${model} ${id}.`);
     }
   };
 
@@ -113,19 +109,14 @@ export default function GenericPage({
 
   const handleDownloadBarcode = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/download-barcode/${model}/`, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${model}_barcodes.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      window.URL.revokeObjectURL(url);
-      link.remove();
+      const result = await downloadBarcode();
+      if (!result.success) {
+        console.error("Error downloading barcodes:", result.message);
+        window.alert("Failed to download barcodes. Please try again.");
+      }
     } catch (error) {
       console.error("Error downloading barcodes:", error);
+      window.alert("Failed to download barcodes. Please try again.");
     }
   };
 
@@ -142,14 +133,24 @@ export default function GenericPage({
         </Stack>
 
         <Box sx={{ mt: 2 }}>
-          <DataTable
-            data={data}
-            columns={columnsWithActions}
-            exportFileName={`${model}_table`}
-            modelType={model}
-            handleEdit={handleEdit}
-            confirmDelete={confirmDelete}
-          />
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Typography color="error" align="center">{error}</Typography>
+          ) : (
+            <DataTable
+              data={data}
+              columns={columnsWithActions}
+              exportFileName={`${model}_table`}
+              modelType={model}
+              handleEdit={handleEdit}
+              confirmDelete={confirmDelete}
+              exportCsv={exportCsv}
+              getBarcodeUrl={getBarcodeUrl}
+            />
+          )}
         </Box>
       </Paper>
 

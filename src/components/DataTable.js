@@ -25,7 +25,6 @@ import ClearIcon from "@mui/icons-material/Clear";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import axios from "axios";
 
 /**
  * Analyze column content lengths and return statistics
@@ -488,12 +487,12 @@ function MultiSortDialog({ open, onClose, columns, sortModel, onSortChange }) {
 }
 
 // Barcode Dialog
-function BarcodeDialog({ open, onClose, modelType, recordId }) {
+function BarcodeDialog({ open, onClose, modelType, recordId, getBarcodeUrl }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentImage, setCurrentImage] = useState(null);
 
-  // Create a unique URL with timestamp to avoid caching issues
-  // Determine correct model from recordId prefix or use modelType
+  // Determine model type for display (can still be useful for dialog title)
   const getModelFromId = (id) => {
     if (id.startsWith('TL-')) return 'tooling';
     if (id.startsWith('MC-')) return 'mesin';
@@ -502,26 +501,51 @@ function BarcodeDialog({ open, onClose, modelType, recordId }) {
   };
 
   const actualModelType = recordId ? getModelFromId(recordId) : modelType;
-  const barcodeUrl = recordId ? `/barcode?model=${actualModelType}&id=${encodeURIComponent(recordId)}&t=${Date.now()}` : null;
 
   useEffect(() => {
-    if (open && recordId) {
+    if (open && recordId && getBarcodeUrl) {
+      // Generate URL only once when dialog opens
+      const barcodeUrl = getBarcodeUrl(recordId);
+      console.log('Dialog opened, loading barcode:', barcodeUrl);
+
       setLoading(true);
       setError(null);
+      setCurrentImage(null);
 
-      // Test if the barcode URL is accessible
-      const testImg = new Image();
-      testImg.onload = () => {
+      // Load image - one request only
+      const img = new Image();
+
+      const handleLoad = () => {
+        console.log('Image loaded successfully, updating state');
         setLoading(false);
         setError(null);
+        setCurrentImage(barcodeUrl);
       };
-      testImg.onerror = () => {
+
+      const handleError = () => {
+        console.log('Image failed to load');
         setLoading(false);
+        setCurrentImage(null);
         setError(`Failed to load barcode for ${recordId}`);
       };
-      testImg.src = barcodeUrl;
+
+      img.addEventListener('load', handleLoad);
+      img.addEventListener('error', handleError);
+
+      // Load immediately
+      img.src = barcodeUrl;
+
+      // Cleanup
+      return () => {
+        img.removeEventListener('load', handleLoad);
+        img.removeEventListener('error', handleError);
+      };
+    } else if (!open) {
+      setLoading(false);
+      setError(null);
+      setCurrentImage(null);
     }
-  }, [open, recordId, barcodeUrl]);
+  }, [open, recordId, getBarcodeUrl]); // Only depend on these, not barcodeUrl
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -535,9 +559,9 @@ function BarcodeDialog({ open, onClose, modelType, recordId }) {
         {error && (
           <Typography color="error">{error}</Typography>
         )}
-        {barcodeUrl && !loading && !error && (
+        {currentImage && !loading && !error && (
           <img
-            src={barcodeUrl}
+            src={currentImage}
             alt={`Barcode for ${recordId}`}
             style={{
               maxWidth: '100%',
@@ -547,21 +571,20 @@ function BarcodeDialog({ open, onClose, modelType, recordId }) {
               padding: '16px',
               backgroundColor: 'white'
             }}
-            onError={() => setError(`Failed to load barcode for ${recordId}`)}
           />
         )}
-        {!loading && !error && !barcodeUrl && (
+        {!loading && !error && !currentImage && (
           <Typography color="text.secondary">No record selected</Typography>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
-        {barcodeUrl && !error && (
+        {currentImage && !error && (
           <Button
             variant="contained"
             onClick={() => {
               // Download the barcode image by opening in new tab
-              window.open(barcodeUrl, '_blank');
+              window.open(currentImage, '_blank');
             }}
           >
             Download
@@ -585,6 +608,8 @@ export default function DataTable({
   showColumnStats = false, // Set to true to log column statistics
   handleEdit, // Function to handle edit button clicks - passed from GenericPage.js
   confirmDelete, // Function to handle delete button clicks - passed from GenericPage.js
+  exportCsv, // Function to handle CSV export - passed from useApi hook
+  getBarcodeUrl, // Function to generate barcode URL - passed from useApi hook
 }) {
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(1200); // Default assumption
@@ -801,29 +826,17 @@ export default function DataTable({
           )}
 
           {/* Export CSV Button - conditionally shown */}
-          {showExportButton && (
+          {showExportButton && exportCsv ? (
             <Button
               variant="contained"
               size="small"
               onClick={async () => {
                 try {
-                  const response = await axios.get('/export/csv', {
-                    params: {
-                      model: modelType  // Pass model type as query parameter
-                    },
-                    responseType: 'blob', // Important for file download
-                  });
-
-                  // Create and trigger file download
-                  const filename = exportFileName ? `${exportFileName}.csv` : `${modelType}_export.csv`;
-                  const fileURL = window.URL.createObjectURL(new Blob([response.data]));
-                  const fileLink = document.createElement('a');
-                  fileLink.href = fileURL;
-                  fileLink.setAttribute('download', filename);
-                  document.body.appendChild(fileLink);
-                  fileLink.click();
-                  fileLink.remove();
-                  window.URL.revokeObjectURL(fileURL);
+                  const result = await exportCsv(exportFileName);
+                  if (!result.success) {
+                    console.error('Export failed:', result.message);
+                    alert('Failed to export CSV. Please try again.');
+                  }
                 } catch (error) {
                   console.error('Export failed:', error);
                   alert('Failed to export CSV. Please try again.');
@@ -841,7 +854,16 @@ export default function DataTable({
             >
               Export CSV
             </Button>
-          )}
+          ) : showExportButton ? (
+            <Button
+              variant="outlined"
+              size="small"
+              disabled
+              sx={{ fontSize: '0.75rem' }}
+            >
+              Export Not Available
+            </Button>
+          ) : null}
         </Stack>
 
         {/* Bottom Row - Search (when active) */}
@@ -881,7 +903,7 @@ export default function DataTable({
         disableColumnReorder={false} // Enable column drag & drop reordering
         disableColumnMenu={false} // Enable column menu with hide/show options
         columnHeaderHeight={56} // Ensure adequate height for drag handles
-        rowHeight={52} // Standard row height for better interaction
+        getRowHeight={() => 'auto'} // Dynamic row height to accommodate wrapped text
         hideFooter={false} // Make sure footer is visible
         hideFooterPagination={false} // Ensure pagination is shown
         pagination
@@ -984,15 +1006,16 @@ export default function DataTable({
             borderBottom: "1px solid #e2e8f0", // Subtle border
           },
 
-          // Cell styling with proper alignment
+          // Cell styling with proper alignment for multi-line text
           "& .MuiDataGrid-cell": {
             borderBottom: "1px solid #e2e8f0", // Light gray border
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start', // Align content to top for multi-line text
             justifyContent: 'flex-start',
-            padding: '8px 16px', // More balanced padding
+            padding: '12px 16px', // More vertical padding for wrapped text
             color: '#334155', // Slate gray text
             overflow: 'visible', // Prevent content cropping
+            minHeight: '52px', // Minimum height to maintain table structure
 
             '&:focus': {
               outline: '2px solid #3b82f6', // Blue focus outline
@@ -1005,12 +1028,14 @@ export default function DataTable({
               paddingRight: '20px', // Ensure right padding too
             },
 
-            // Ensure text content doesn't get cropped
+            // Ensure text content wraps properly
             '& .MuiDataGrid-cellContent': {
               overflow: 'visible',
               textOverflow: 'initial',
-              whiteSpace: 'nowrap',
+              whiteSpace: 'normal', // Allow text wrapping to multiple lines
               width: '100%',
+              lineHeight: '1.4', // Better line spacing for multi-line text
+              wordBreak: 'break-word', // Break long words if needed
             },
           },
 
@@ -1082,6 +1107,7 @@ export default function DataTable({
         onClose={() => setBarcodeDialogOpen(false)}
         modelType={modelType}
         recordId={selectedRowId}
+        getBarcodeUrl={getBarcodeUrl}
       />
     </Box>
   );
