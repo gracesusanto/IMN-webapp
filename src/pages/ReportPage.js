@@ -86,7 +86,7 @@ export default function ReportPage() {
 
     try {
       const response = await axios.post(
-        `/report/${reportType}`,
+        `${API_CONFIG.BASE_URL}/report/${reportType}`,
         requestData,
         download ? { responseType: "blob" } : {}
       );
