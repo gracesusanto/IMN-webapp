@@ -1,281 +1,342 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import DataTable from './DataTable';
-import styles from './ReportPage.module.css'; // Import the styles
+import * as React from "react";
+import axios from "axios";
+import {
+  Box,
+  Button,
+  Collapse,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+
+import DataTable from "./DataTable";
+import styles from "./ReportPage.module.css";
 
 const getTodayDateJakarta = () => {
-    const now = new Date();
-    const jakartaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // Offset for GMT+7
-    return jakartaTime.toISOString().split('T')[0]; // Format to 'YYYY-MM-DD'
+  const now = new Date();
+  const jakartaTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return jakartaTime.toISOString().split("T")[0];
 };
 
-const ReportPage = () => {
-    const [reportType, setReportType] = useState('mesin'); // 'operator' or 'mesin'
-    const [format, setFormat] = useState('imn_dashboard'); // 'limax_dashboard', 'imn_dashboard'
-    const [dateFrom, setDateFrom] = useState(getTodayDateJakarta());
-    const [dateTo, setDateTo] = useState(getTodayDateJakarta());
-    const [shiftFrom, setShiftFrom] = useState(1);
-    const [shiftTo, setShiftTo] = useState(3);
-    const [data, setData] = useState([]);
-    const [isLoading, setIsLoading] = useState(false); // State to handle loading status
-    const [showFilters, setShowFilters] = useState(false); // To toggle filter form visibility
-    const [filters, setFilters] = useState({
-        "Reject Ratio": { gt: null, lt: null },
-        "Rework Ratio": { gt: null, lt: null },
-        "Productivity": { gt: null, lt: null },
-    });
-    const [sortConfig, setSortConfig] = useState({
-        sort_by: null,  // The field name to sort by
-        direction: 'ascending'  // The direction to sort
-    });
+export default function ReportPage() {
+  const [reportType, setReportType] = React.useState("mesin");
+  const [format, setFormat] = React.useState("imn_dashboard");
+  const [dateFrom, setDateFrom] = React.useState(getTodayDateJakarta());
+  const [dateTo, setDateTo] = React.useState(getTodayDateJakarta());
+  const [shiftFrom, setShiftFrom] = React.useState(1);
+  const [shiftTo, setShiftTo] = React.useState(3);
 
-    // Handler to update filter states
-    const handleFilterChange = (filterName, condition, value) => {
-        setFilters((prevFilters) => ({
-            ...prevFilters,
-            [filterName]: {
-                ...prevFilters[filterName],
-                [condition]: value,
-            },
-        }));
+  const [data, setData] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [filters, setFilters] = React.useState({
+    "Reject Ratio": { gt: null, lt: null },
+    "Rework Ratio": { gt: null, lt: null },
+    Productivity: { gt: null, lt: null },
+  });
+
+  const [sortConfig, setSortConfig] = React.useState({
+    sort_by: null,
+    direction: "ascending",
+  });
+
+  const handleFilterChange = (filterName, condition, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterName]: {
+        ...prev[filterName],
+        [condition]: value === "" ? null : value,
+      },
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      Productivity: { gt: null, lt: null },
+      "Reject Ratio": { gt: null, lt: null },
+      "Rework Ratio": { gt: null, lt: null },
+    });
+  };
+
+  const fetchReport = async (download = false, sortConfigOverride = null) => {
+    setIsLoading(true);
+
+    let requestFormat = format;
+    if (download) requestFormat = format.replace("_dashboard", "");
+
+    const effectiveSort = sortConfigOverride !== null ? sortConfigOverride : sortConfig;
+
+    const requestData = {
+      format: requestFormat,
+      date_from: dateFrom,
+      shift_from: shiftFrom,
+      date_to: dateTo,
+      shift_to: shiftTo,
+      filters,
     };
 
-    const resetFilters = () => {
-        // Assuming you have a state 'filters' that keeps track of all filter values
-        setFilters({
-            'Productivity': { gt: null, lt: null },
-            'Reject Ratio': { gt: null, lt: null },
-            'Rework Ratio': { gt: null, lt: null },
-        });
+    if (effectiveSort?.sort_by) requestData.sort = effectiveSort;
+
+    try {
+      const response = await axios.post(
+        `/report/${reportType}`,
+        requestData,
+        download ? { responseType: "blob" } : {}
+      );
+
+      if (download) {
+        const contentDisposition = response.headers["content-disposition"];
+        let filename = `${reportType}_report.csv`;
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch?.[1]) filename = filenameMatch[1];
+        }
+        const fileURL = window.URL.createObjectURL(new Blob([response.data]));
+        const fileLink = document.createElement("a");
+        fileLink.href = fileURL;
+        fileLink.setAttribute("download", filename);
+        document.body.appendChild(fileLink);
+        fileLink.click();
+        fileLink.remove();
+        window.URL.revokeObjectURL(fileURL);
+      } else {
+        setData(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching report:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  const columns = React.useMemo(() => {
+    return data.length > 0
+      ? Object.keys(data[0]).map((key) => ({ Header: key, accessor: key }))
+      : [];
+  }, [data]);
 
-    const fetchReport = async (download = false, sortConfigOverride = null) => {
-        setIsLoading(true); // Start loading
-        let requestFormat = format;
-        if (download) {
-            // Remove '_dashboard' suffix for download format
-            requestFormat = format.replace('_dashboard', '');
-        }
+  return (
+    <Stack spacing={2}>
+      <Typography variant="h5">
+        {reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
+      </Typography>
 
-        const effectiveSortConfig = sortConfigOverride !== null ? sortConfigOverride : sortConfig;
+      <Paper sx={{ p: 2, borderRadius: 2 }}>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Report Type</InputLabel>
+              <Select
+                label="Report Type"
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value)}
+              >
+                <MenuItem value="mesin">Mesin</MenuItem>
+                <MenuItem value="operator">Operator</MenuItem>
+              </Select>
+            </FormControl>
 
-        const requestData = {
-            format: requestFormat,
-            date_from: dateFrom,
-            shift_from: shiftFrom,
-            date_to: dateTo,
-            shift_to: shiftTo,
-            filters: filters,
-        };
+            <FormControl size="small" fullWidth>
+              <InputLabel>Format</InputLabel>
+              <Select
+                label="Format"
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+              >
+                <MenuItem value="imn_dashboard">IMN</MenuItem>
+                <MenuItem value="limax_dashboard">Limax</MenuItem>
+              </Select>
+            </FormControl>
 
-        if (effectiveSortConfig && effectiveSortConfig.sort_by) {
-            requestData.sort = effectiveSortConfig;
-        }
+            <TextField
+              size="small"
+              type="date"
+              label="Date From"
+              InputLabelProps={{ shrink: true }}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              fullWidth
+            />
 
-        console.log('Sending request to /report/', reportType, 'with data:', requestData);
+            <TextField
+              size="small"
+              type="date"
+              label="Date To"
+              InputLabelProps={{ shrink: true }}
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              fullWidth
+            />
 
-        try {
-            const response = await axios.post(`/report/${reportType}`, requestData, download ? { responseType: 'blob' } : {});
+            <TextField
+              size="small"
+              type="number"
+              label="Shift From"
+              inputProps={{ min: 1, max: 3 }}
+              value={shiftFrom}
+              onChange={(e) => setShiftFrom(parseInt(e.target.value || "1", 10))}
+              fullWidth
+            />
 
-            if (download) {
-                // Trigger file download
-                const contentDisposition = response.headers['content-disposition'];
-                let filename = `${reportType}_report.csv`;
-                if (contentDisposition) {
-                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-                    if (filenameMatch && filenameMatch.length > 1) {
-                        filename = filenameMatch[1];
-                    }
-                }
-                const fileURL = window.URL.createObjectURL(new Blob([response.data]));
-                const fileLink = document.createElement('a');
-                fileLink.href = fileURL;
-                fileLink.setAttribute('download', filename);
-                document.body.appendChild(fileLink);
-                fileLink.click();
-                fileLink.remove();
-                window.URL.revokeObjectURL(fileURL);
-            } else {
-                // Set data for display in table
-                setData(response.data);
-            }
-        } catch (error) {
-            console.error('Error fetching report:', error);
-        } finally {
-            setIsLoading(false); // Stop loading whether or not there was an error
-        }
-    };
+            <TextField
+              size="small"
+              type="number"
+              label="Shift To"
+              inputProps={{ min: 1, max: 3 }}
+              value={shiftTo}
+              onChange={(e) => setShiftTo(parseInt(e.target.value || "1", 10))}
+              fullWidth
+            />
+          </Stack>
 
-    const columns = React.useMemo(() => {
-        // Dynamically create columns based on the data keys
-        return data.length > 0 ? Object.keys(data[0]).map(key => ({
-            Header: key,
-            accessor: key
-        })) : [];
-    }, [data]);
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button
+              variant="contained"
+              onClick={() => {
+                resetFilters();
+                fetchReport(false);
+              }}
+              disabled={isLoading}
+            >
+              Show
+            </Button>
 
-    const inputForm = (
-        <table className={styles.tableStyle}>
-            <thead>
-                <tr>
-                    <th className={styles.thStyle}>Report Type</th>
-                    <th className={styles.thStyle}>Format</th>
-                    <th className={styles.thStyle}>Date From</th>
-                    <th className={styles.thStyle}>Date To</th>
-                    <th className={styles.thStyle}>Shift From</th>
-                    <th className={styles.thStyle}>Shift To</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td className={styles.tdStyle}>
-                        <select value={reportType} onChange={e => setReportType(e.target.value)}>
-                            <option value="mesin">Mesin</option>
-                            <option value="operator">Operator</option>
-                        </select>
-                    </td>
-                    <td className={styles.tdStyle}>
-                        <select value={format} onChange={e => setFormat(e.target.value)}>
-                            <option value="imn_dashboard">IMN</option>
-                            <option value="limax_dashboard">Limax</option>
-                        </select>
-                    </td>
-                    <td className={styles.tdStyle}>
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-                    </td>
-                    <td className={styles.tdStyle}>
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-                    </td>
-                    <td className={styles.tdStyle}>
-                        <input type="number" min="1" max="3" value={shiftFrom} onChange={e => setShiftFrom(parseInt(e.target.value, 10))} />
-                    </td>
-                    <td className={styles.tdStyle}>
-                        <input type="number" min="1" max="3" value={shiftTo} onChange={e => setShiftTo(parseInt(e.target.value, 10))} />
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    );
+            <Button
+              variant="outlined"
+              onClick={() => setShowFilters((v) => !v)}
+              disabled={isLoading}
+            >
+              {showFilters ? "Close Filters" : "Filters"}
+            </Button>
+          </Stack>
 
+          <Collapse in={showFilters}>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                  {["Productivity", "Reject Ratio", "Rework Ratio"].map((filterType) => (
+                    <Box key={filterType} sx={{ flex: 1 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        {filterType}
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Min"
+                          inputProps={{ step: 0.01 }}
+                          value={filters[filterType]?.gt ?? ""}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              filterType,
+                              "gt",
+                              e.target.value === "" ? "" : parseFloat(e.target.value)
+                            )
+                          }
+                          fullWidth
+                        />
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Max"
+                          inputProps={{ step: 0.01 }}
+                          value={filters[filterType]?.lt ?? ""}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              filterType,
+                              "lt",
+                              e.target.value === "" ? "" : parseFloat(e.target.value)
+                            )
+                          }
+                          fullWidth
+                        />
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
 
-    return (
-        <div>
-            <h1>{reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</h1>
-            <div className={styles.inputContainer}>{inputForm}</div>
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button variant="text" onClick={resetFilters} disabled={isLoading}>
+                    Reset
+                  </Button>
+                  <Button variant="contained" onClick={() => fetchReport(false)} disabled={isLoading}>
+                    Apply Filters
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          </Collapse>
 
-            <button onClick={() => { resetFilters(); fetchReport(false); }}>Show</button>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="flex-end">
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel>Sort By</InputLabel>
+              <Select
+                label="Sort By"
+                value={sortConfig.sort_by || ""}
+                onChange={(e) => {
+                  const selected = e.target.value;
+                  setSortConfig((prev) => {
+                    const next = { ...prev, sort_by: selected !== "" ? selected : null };
+                    fetchReport(false, next.sort_by ? next : null);
+                    return next;
+                  });
+                }}
+              >
+                <MenuItem value="">None</MenuItem>
+                <MenuItem value="Productivity">Productivity</MenuItem>
+                <MenuItem value="Reject Ratio">Reject Ratio</MenuItem>
+                <MenuItem value="Rework Ratio">Rework Ratio</MenuItem>
+              </Select>
+            </FormControl>
 
-            <div className={styles.mainContainer}>
-                {/* Conditionally render the spinner */}
-                {isLoading && (
-                    <div className={styles.spinnerContainer}>
-                        <div className={styles.spinner}></div>
-                    </div>
-                )}
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSortConfig((prev) => {
+                  const newDirection = prev.direction === "ascending" ? "descending" : "ascending";
+                  const next = { ...prev, direction: newDirection };
+                  fetchReport(false, next);
+                  return next;
+                });
+              }}
+              disabled={!sortConfig.sort_by || isLoading}
+            >
+              {sortConfig.direction === "ascending" ? "↑ Asc" : "↓ Desc"}
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
 
-                {/* Filter and Sort Container */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem' }}>
-                    <div className={styles.sortingControls}>
-                        {/* Sort By dropdown */}
-                        <select
-                            className={styles.sortBySelect}
-                            onChange={(e) => {
-                                const selectedSortField = e.target.value;
-                                setSortConfig(prevConfig => {
-                                    const newConfig = {
-                                        ...prevConfig,
-                                        sort_by: selectedSortField !== "" ? selectedSortField : null, // Set to null if "Select Sort Field" is chosen
-                                        // Optionally reset direction to 'ascending' or keep the previous direction
-                                    };
-                                    fetchReport(false, newConfig.sort_by ? newConfig : null); // Only pass sortConfig if a field is selected
-                                    return newConfig;
-                                });
-                            }}
-                            value={sortConfig.sort_by || ''}
-                        >
-                            <option value="">Sort By...</option>
-                            <option value="Productivity">Productivity</option>
-                            <option value="Reject Ratio">Reject Ratio</option>
-                            <option value="Rework Ratio">Rework Ratio</option>
-                        </select>
+      <Box className={styles.mainContainer}>
+        {isLoading && (
+          <div className={styles.spinnerContainer}>
+            <div className={styles.spinner}></div>
+          </div>
+        )}
 
-                        {/* Button to Toggle Sort Direction */}
-                        <button
-                            onClick={() => {
-                                setSortConfig(prevConfig => {
-                                    const newDirection = prevConfig.direction === 'ascending' ? 'descending' : 'ascending';
-                                    const newConfig = { ...prevConfig, direction: newDirection };
-                                    fetchReport(false, newConfig); // Pass the new sort config to fetchReport
-                                    return newConfig;
-                                });
-                            }}
-                            className={styles.sortDirectionToggle}
-                        >
-                            {sortConfig.direction === 'ascending' ? '↑ Asc' : '↓ Desc'}
-                        </button>
-                    </div>
-                    {/* Filters button */}
-                    <button className={styles.filterButton} onClick={() => setShowFilters(!showFilters)}>
-                        {showFilters ? 'Close Filters' : 'Filters'}
-                    </button>
-                </div>
+        {!isLoading && data.length > 0 && (
+          <Stack spacing={1.5}>
+            <DataTable
+              columns={columns}
+              data={data}
+              exportFileName={`${reportType}_report_preview`}
+              height={680}
+            />
 
-
-                {/* Conditionally render the table and filter */}
-                <div>
-                    <div className={styles.filterContainer}>
-                        {/* Filter form */}
-                        {showFilters && (
-                            <div style={{ width: '100%' }}> {/* Ensures the filters take full width */}
-                                <div className={styles.filterSection}>
-                                    {/* Map through each filter type and create its section */}
-                                    {['Productivity', 'Reject Ratio', 'Rework Ratio'].map((filterType) => (
-                                        <div className={styles.filterSection} key={filterType}>
-                                            <h4>{filterType}</h4>
-                                            <div>
-                                                <input
-                                                    className={styles.inputField}
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="Min"
-                                                    value={filters[filterType]?.gt || ''}
-                                                    onChange={(e) => handleFilterChange(filterType, 'gt', parseFloat(e.target.value))}
-                                                />
-                                                <input
-                                                    className={styles.inputField}
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="Max"
-                                                    value={filters[filterType]?.lt || ''}
-                                                    onChange={(e) => handleFilterChange(filterType, 'lt', parseFloat(e.target.value))}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {/* Apply Filters Button */}
-                                <div className={styles.applyFiltersContainer}>
-                                    <button className={styles.resetFiltersButton} onClick={() => resetFilters()}>Reset Filters</button>
-                                    <button className={styles.applyFiltersButton} onClick={() => fetchReport(false)}>Apply Filters</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Data table and download report button */}
-                {!isLoading && data.length > 0 && (
-                    <>
-                        <DataTable columns={columns} data={data} />
-                        <button className={styles.filterButton} onClick={() => fetchReport(true)}>Download Report</button>
-                    </>
-                )}
-            </div>
-
-
-        </div >
-    );
-};
-
-export default ReportPage;
+            <Stack direction="row" justifyContent="flex-end">
+              <Button variant="contained" onClick={() => fetchReport(true)}>
+                Download Report (CSV)
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+      </Box>
+    </Stack>
+  );
+}

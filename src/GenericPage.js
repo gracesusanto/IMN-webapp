@@ -1,142 +1,179 @@
-// src/GenericPage.js
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import DataTable from './DataTable';
-import CsvUpload from './CsvUpload';
-import GenericForm from './GenericForm';
-import './FormStyles.css';
+import * as React from "react";
+import axios from "axios";
+import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 
-const GenericPage = ({ apiUrl, model, formFields, csvFormat, dataColumns, buttonText }) => {
-    const [data, setData] = useState([]);
-    const [currentItem, setCurrentItem] = useState({ id: '', ...formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {}) });
-    const [message, setMessage] = useState(""); // For success or error messages
-    const [errors, setErrors] = useState({});
+import DataTable from "./DataTable";
+import CsvUpload from "./CsvUpload";
+import GenericForm from "./GenericForm";
 
-    // Fetch data from the API
-    const fetchData = () => {
-        axios.get(`${apiUrl}/${model}/`)
-            .then(response => {
-                setData(response.data);
-            })
-            .catch(error => {
-                console.error("Error fetching data: ", error);
-                setMessage(`Error fetching ${model}.`);
-            });
-    };
+export default function GenericPage({
+  apiUrl,
+  model,
+  formFields,
+  csvFormat,
+  dataColumns,
+  buttonText,
+}) {
+  const [data, setData] = React.useState([]);
+  const [currentItem, setCurrentItem] = React.useState({
+    id: "",
+    ...formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {}),
+  });
+  const [message, setMessage] = React.useState("");
+  const [errors, setErrors] = React.useState({});
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+  const fetchData = () => {
+    axios
+      .get(`${apiUrl}/${model}/`)
+      .then((response) => setData(response.data))
+      .catch((error) => {
+        console.error("Error fetching data: ", error);
+        setMessage(`Error fetching ${model}.`);
+      });
+  };
 
-    // Handle form submit
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        try {
-            const response = await axios.post(`${apiUrl}/${model}/`, currentItem);
-            fetchData(); // Refetch data
-            setMessage(`Data ${response.data.id} added successfully!`);
-            setCurrentItem(formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {}));
-            setErrors({}); // Clear errors if the submission is successful
-        } catch (error) {
-            console.error(`Error submitting ${model}:`, error);
-            setMessage('');
-            if (error.response && error.response.data && error.response.data.detail) {
-                const formErrors = error.response.data.detail.reduce((acc, err) => {
-                    acc[err.loc[1]] = err.msg;
-                    return acc;
-                }, {});
-                setErrors(formErrors); // Store errors to display on the form
-            } else {
-                setMessage(`Error adding ${model}: ${error.message}`);
-            }
-        }
-    };
+  React.useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // Function to handle the edit operation
-    const handleEdit = (item) => {
-        setCurrentItem(item);
-    };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const response = await axios.post(`${apiUrl}/${model}/`, currentItem);
+      fetchData();
+      setMessage(`Data ${response.data.id} added successfully!`);
+      setCurrentItem(
+        formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {})
+      );
+      setErrors({});
+    } catch (error) {
+      console.error(`Error submitting ${model}:`, error);
+      setMessage("");
+      if (error.response?.data?.detail) {
+        const formErrors = error.response.data.detail.reduce((acc, err) => {
+          acc[err.loc[1]] = err.msg;
+          return acc;
+        }, {});
+        setErrors(formErrors);
+      } else {
+        setMessage(`Error adding ${model}: ${error.message}`);
+      }
+    }
+  };
 
-    // Confirm delete
-    const confirmDelete = (id) => {
-        const enteredId = window.prompt(`Enter the ID of the ${model} to delete (${id}):`);
-        if (enteredId && enteredId === id) {
-            handleDelete(id);
-        } else {
-            alert(`The entered ID does not match the ${model} ID.`);
-        }
-    };
+  const handleEdit = (item) => setCurrentItem(item);
 
-    // Delete item
-    const handleDelete = async (id) => {
-        try {
-            const response = await axios.delete(`${apiUrl}/${model}/${id}`);
-            fetchData();
-            alert(`Data ${id} deleted successfully!`);
-        } catch (error) {
-            alert(`Error deleting ${model} ${id}.`);
-        }
-    };
+  const confirmDelete = (id) => {
+    const enteredId = window.prompt(`Enter the ID of the ${model} to delete (${id}):`);
+    if (enteredId && enteredId === id) {
+      handleDelete(id);
+    } else {
+      window.alert(`The entered ID does not match the ${model} ID.`);
+    }
+  };
 
-    // Add action buttons to the dataColumns
-    const actionColumn = {
-        Header: 'Actions',
-        id: 'actions',
-        Cell: ({ row }) => (
-            <>
-                <button onClick={() => handleEdit(row.original)} className="edit-button">Modify</button>
-                <button onClick={() => confirmDelete(row.original.id)} className="delete-button">Delete</button>
-            </>
-        ),
-    };
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${apiUrl}/${model}/${id}`);
+      fetchData();
+      window.alert(`Data ${id} deleted successfully!`);
+    } catch (error) {
+      window.alert(`Error deleting ${model} ${id}.`);
+    }
+  };
 
-    // Include the action column in the columns for the DataTable
-    const columnsWithActions = React.useMemo(() => [...dataColumns, actionColumn], [dataColumns]);
+  const actionColumn = {
+    Header: "Actions",
+    id: "actions",
+    Cell: ({ row }) => (
+      <Stack direction="row" spacing={1}>
+        <Button size="small" variant="outlined" onClick={() => handleEdit(row.original)}>
+          Modify
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          color="error"
+          onClick={() => confirmDelete(row.original.id)}
+        >
+          Delete
+        </Button>
+      </Stack>
+    ),
+  };
 
+  const columnsWithActions = React.useMemo(
+    () => [...dataColumns, actionColumn],
+    [dataColumns]
+  );
 
-    // Download barcode
-    const handleDownloadBarcode = async () => {
-        try {
-            const response = await axios.get(`${apiUrl}/download-barcode/${model}/`, { responseType: 'blob' });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${model}_barcodes.xlsx`); // or any other extension
-            document.body.appendChild(link);
-            link.click();
-            window.URL.revokeObjectURL(url);
-            link.remove();
-        } catch (error) {
-            console.error('Error downloading barcodes:', error);
-            // Handle error
-        }
-    };
+  const handleDownloadBarcode = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/download-barcode/${model}/`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${model}_barcodes.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      link.remove();
+    } catch (error) {
+      console.error("Error downloading barcodes:", error);
+    }
+  };
 
-    return (
-        <>
-            <div className="section-container">
-                <h2 className="section-heading">{model.charAt(0).toUpperCase() + model.slice(1)} Table</h2>
-                <DataTable data={data} columns={columnsWithActions} />
-                <button onClick={handleDownloadBarcode}>Download Barcode</button>
-            </div>
-            <div className="section-container">
-                <h2 className="section-heading">Add New {model.charAt(0).toUpperCase() + model.slice(1)}</h2>
-                <GenericForm
-                    currentData={currentItem}
-                    setCurrentData={setCurrentItem}
-                    handleSubmit={handleSubmit}
-                    message={{ text: message, buttonText: buttonText }}
-                    fields={formFields}
-                    errors={errors}
-                />
-            </div>
-            <div className="section-container">
-                <h2 className="section-heading">Update {model.charAt(0).toUpperCase() + model.slice(1)} via CSV</h2>
-                <p>Expected CSV format: <br></br>{csvFormat}</p>
-                <CsvUpload onUploadSuccess={fetchData} uploadUrl={`${model}`} />
-            </div>
-        </>
-    );
-};
+  return (
+    <Stack spacing={3}>
+      <Paper sx={{ p: 2, borderRadius: 2 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Typography variant="h6">
+            {model.charAt(0).toUpperCase() + model.slice(1)} Table
+          </Typography>
+          <Button variant="outlined" onClick={handleDownloadBarcode}>
+            Download Barcode
+          </Button>
+        </Stack>
 
-export default GenericPage;
+        <Box sx={{ mt: 2 }}>
+          <DataTable
+            data={data}
+            columns={columnsWithActions}
+            exportFileName={`${model}_table`}
+            handleEdit={handleEdit}
+            confirmDelete={confirmDelete}
+          />
+        </Box>
+      </Paper>
+
+      <Paper sx={{ p: 2, borderRadius: 2 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Add / Modify {model.charAt(0).toUpperCase() + model.slice(1)}
+        </Typography>
+
+        <GenericForm
+          currentData={currentItem}
+          setCurrentData={setCurrentItem}
+          handleSubmit={handleSubmit}
+          message={{ text: message, buttonText: buttonText }}
+          fields={formFields}
+          errors={setErrors ? errors : {}}
+        />
+      </Paper>
+
+      <Paper sx={{ p: 2, borderRadius: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Update {model.charAt(0).toUpperCase() + model.slice(1)} via CSV
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.85, mb: 2 }}>
+          Expected CSV format: <br />
+          {csvFormat}
+        </Typography>
+        <CsvUpload onUploadSuccess={fetchData} uploadUrl={`${model}`} />
+      </Paper>
+    </Stack>
+  );
+}

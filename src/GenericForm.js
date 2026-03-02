@@ -1,31 +1,42 @@
-// src/GenericForm.js
-import React from 'react';
+import * as React from "react";
+import { Alert, Box, Button, Stack, TextField } from "@mui/material";
 
-const GenericForm = ({ currentData, setCurrentData, handleSubmit, message, fields, errors }) => {
-    return (
-        <div className="form-container">
-            <form onSubmit={handleSubmit}>
-                {fields.map((field) => (
-                    <React.Fragment key={field.name}>
-                        <label className="form-label" htmlFor={field.name}>{field.label}</label>
-                        <input
-                            className={`form-field ${errors[field.name] ? 'input-error' : ''}`}
-                            type={field.type}
-                            id={field.name}
-                            name={field.name}
-                            placeholder={field.placeholder}
-                            value={currentData[field.name]}
-                            onChange={(e) => setCurrentData({ ...currentData, [field.name]: e.target.value })}
-                            required={field.required}
-                        />
-                        {errors[field.name] && <div className="error-message">{errors[field.name]}</div>}
-                    </React.Fragment>
-                ))}
-                <button className="form-button" type="submit">{message.buttonText}</button>
-            </form>
-            {message.text && <div className="success-message">{message.text}</div>}
-        </div>
-    );
-};
+export default function GenericForm({
+  currentData,
+  setCurrentData,
+  handleSubmit,
+  message,
+  fields,
+  errors,
+}) {
+  return (
+    <Box component="form" onSubmit={handleSubmit} noValidate>
+      <Stack spacing={2}>
+        {fields.map((field) => (
+          <TextField
+            key={field.name}
+            label={field.label}
+            type={field.type}
+            name={field.name}
+            value={currentData[field.name] ?? ""}
+            onChange={(e) =>
+              setCurrentData({ ...currentData, [field.name]: e.target.value })
+            }
+            required={field.required}
+            placeholder={field.placeholder}
+            error={Boolean(errors?.[field.name])}
+            helperText={errors?.[field.name] || " "}
+            size="small"
+            fullWidth
+          />
+        ))}
 
-export default GenericForm;
+        <Button type="submit" variant="contained">
+          {message?.buttonText || "Submit"}
+        </Button>
+
+        {message?.text ? <Alert severity="success">{message.text}</Alert> : null}
+      </Stack>
+    </Box>
+  );
+}

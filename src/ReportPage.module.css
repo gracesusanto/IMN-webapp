@@ -40,7 +40,7 @@
 .mainContainer {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
 }
 
 /* Container for the filter button only */
