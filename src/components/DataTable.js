@@ -684,7 +684,6 @@ export default function DataTable({
         // Hide columns that are typically less important
         if (
           headerLower.includes('description') ||
-          headerLower.includes('keterangan') ||
           headerLower.includes('note') ||
           headerLower.includes('remark') ||
           fieldLower.includes('desc') ||
