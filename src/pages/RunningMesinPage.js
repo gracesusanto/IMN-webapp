@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import axios from 'axios';
-import DataTable from './DataTable';
+import DataTable from '../components/DataTable';
+import { API_CONFIG } from '../constants/config';
 
 const formatDate = (dateString) => {
     const date = parseISO(dateString);
@@ -12,7 +13,7 @@ const RunningMesinPage = () => {
     const [data, setData] = useState([]);
 
     const fetchData = () => {
-        axios.get(`${process.env.REACT_APP_API_URL}/mesin-status-all/`)
+        axios.get(`${API_CONFIG.BASE_URL}/mesin-status-all/`)
             .then(response => {
                 setData(response.data.details);
             })
@@ -26,7 +27,7 @@ const RunningMesinPage = () => {
     }, []);
 
     // Start Time, Mesin, Tooling, Operator, Status, Kategori Downtime
-    const columns = React.useMemo(() => {
+    const columns = useMemo(() => {
         return data.length > 0 ? Object.keys(data[0]).map(key => ({
             Header: key,
             accessor: key,

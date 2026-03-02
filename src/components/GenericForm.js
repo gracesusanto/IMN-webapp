@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Alert, Box, Button, Stack, TextField } from "@mui/material";
 
 export default function GenericForm({

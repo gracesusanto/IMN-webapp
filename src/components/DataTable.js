@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   DataGrid,
 } from "@mui/x-data-grid";
@@ -159,23 +159,6 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
   const compactWidths = (columns || []).map((c) => {
     const field = c.accessor || c.id;
     const header = c.Header || field;
-    const fieldLower = field.toLowerCase();
-    const headerLower = header.toLowerCase();
-
-    // Smart overrides for common column types (dashboard-optimized)
-    if (fieldLower.includes('status') || fieldLower.includes('type') || fieldLower.includes('shift')) {
-      return { field, compactWidth: 80, isFlexible: false };
-    }
-    if (fieldLower.includes('qty') || fieldLower.includes('count') ||
-        fieldLower.includes('ratio') || fieldLower.includes('total')) {
-      return { field, compactWidth: 90, isFlexible: false };
-    }
-    if (fieldLower.includes('date') || fieldLower.includes('time')) {
-      return { field, compactWidth: 120, isFlexible: false };
-    }
-    if (fieldLower.includes('action') || headerLower.includes('action')) {
-      return { field, compactWidth: 200, isFlexible: false }; // Always show both buttons
-    }
 
     // Calculate dynamic width for text columns
     const dynamicWidth = calculateColumnWidth(data, field, widthPercentile);
@@ -232,12 +215,13 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
     }
   });
 
-  // Only add/enhance Actions for model tables (tooling, operator, mesin)
+  // Only add/enhance Actions for model tables (tooling, operator, mesin) with proper handlers
   const normalizedModelType = modelType.toLowerCase().replace(/s$/, ''); // Remove plural 's'
   const isModelTable = ['tooling', 'operator', 'mesin'].includes(normalizedModelType);
+  const hasActionHandlers = typeof handleEdit === 'function' && typeof confirmDelete === 'function';
 
   // Debug logging
-  console.log('DataTable modelType:', modelType, 'normalized:', normalizedModelType, 'isModelTable:', isModelTable);
+  console.log('DataTable modelType:', modelType, 'normalized:', normalizedModelType, 'isModelTable:', isModelTable, 'hasActionHandlers:', hasActionHandlers);
 
   // Check if there's already an actions column from the original GenericPage pattern
   const hasExistingActions = dataColumns.some(col =>
@@ -246,7 +230,7 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
     col.id?.toLowerCase().includes('action')
   );
 
-  if (isModelTable && hasExistingActions) {
+  if (isModelTable && hasActionHandlers && hasExistingActions) {
     // Replace existing actions column with full MUI-based buttons
     return dataColumns.map(col => {
       if (col.field?.toLowerCase().includes('action') ||
@@ -310,7 +294,7 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
       }
       return col;
     });
-  } else if (isModelTable) {
+  } else if (isModelTable && hasActionHandlers) {
     // No existing actions column for model table - add our own with full functionality
     const actionsColumn = {
       field: 'actions',
@@ -371,7 +355,7 @@ function toMuiColumns(columns, data, widthPercentile = 0.6, containerWidth = 120
 
     return [...dataColumns, actionsColumn];
   } else {
-    // Not a model table (reports, etc.) - no Actions column needed
+    // Not a model table or missing action handlers (reports, etc.) - no Actions column needed
     return dataColumns;
   }
 }
@@ -420,9 +404,9 @@ function ColumnVisibilityDialog({ open, onClose, columns, columnVisibilityModel,
 
 // Multi-Sort Dialog
 function MultiSortDialog({ open, onClose, columns, sortModel, onSortChange }) {
-  const [localSortModel, setLocalSortModel] = React.useState([]);
+  const [localSortModel, setLocalSortModel] = useState([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalSortModel(sortModel || []);
   }, [sortModel, open]);
 
@@ -505,8 +489,8 @@ function MultiSortDialog({ open, onClose, columns, sortModel, onSortChange }) {
 
 // Barcode Dialog
 function BarcodeDialog({ open, onClose, modelType, recordId }) {
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Create a unique URL with timestamp to avoid caching issues
   // Determine correct model from recordId prefix or use modelType
@@ -520,7 +504,7 @@ function BarcodeDialog({ open, onClose, modelType, recordId }) {
   const actualModelType = recordId ? getModelFromId(recordId) : modelType;
   const barcodeUrl = recordId ? `/barcode?model=${actualModelType}&id=${encodeURIComponent(recordId)}&t=${Date.now()}` : null;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && recordId) {
       setLoading(true);
       setError(null);
@@ -602,25 +586,25 @@ export default function DataTable({
   handleEdit, // Function to handle edit button clicks - passed from GenericPage.js
   confirmDelete, // Function to handle delete button clicks - passed from GenericPage.js
 }) {
-  const containerRef = React.useRef(null);
-  const [containerWidth, setContainerWidth] = React.useState(1200); // Default assumption
-  const [columnVisibilityModel, setColumnVisibilityModel] = React.useState({});
+  const containerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(1200); // Default assumption
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState({});
 
   // Add state for toolbar features
-  const [searchValue, setSearchValue] = React.useState('');
-  const [sortModel, setSortModel] = React.useState([]);
-  const [filterModel, setFilterModel] = React.useState({ items: [] });
-  const [columnOrderModel, setColumnOrderModel] = React.useState([]);
+  const [searchValue, setSearchValue] = useState('');
+  const [sortModel, setSortModel] = useState([]);
+  const [filterModel, setFilterModel] = useState({ items: [] });
+  const [columnOrderModel, setColumnOrderModel] = useState([]);
 
   // Dialog states
-  const [columnDialogOpen, setColumnDialogOpen] = React.useState(false);
-  const [sortDialogOpen, setSortDialogOpen] = React.useState(false);
-  const [searchOpen, setSearchOpen] = React.useState(false);
-  const [barcodeDialogOpen, setBarcodeDialogOpen] = React.useState(false);
-  const [selectedRowId, setSelectedRowId] = React.useState(null);
+  const [columnDialogOpen, setColumnDialogOpen] = useState(false);
+  const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
   // Handle search change
-  const handleSearchChange = React.useCallback((value) => {
+  const handleSearchChange = useCallback((value) => {
     setSearchValue(value);
     if (value) {
       // Create a quick filter for all visible columns
@@ -646,7 +630,7 @@ export default function DataTable({
   }, [columns, columnVisibilityModel]);
 
   // Handle clear filters
-  const handleClearFilters = React.useCallback(() => {
+  const handleClearFilters = useCallback(() => {
     setFilterModel({ items: [] });
     setSearchValue('');
   }, []);
@@ -657,13 +641,13 @@ export default function DataTable({
   ).length;
 
   // Handle column order change with debugging
-  const handleColumnOrderChange = React.useCallback((newOrder) => {
+  const handleColumnOrderChange = useCallback((newOrder) => {
     console.log('📋 Column order changed:', newOrder);
     setColumnOrderModel(newOrder);
   }, []);
 
   // Initialize column visibility - hide less important columns by default
-  React.useEffect(() => {
+  useEffect(() => {
     if (columns && columns.length > 6) {
       const initialVisibility = {};
       columns.forEach(col => {
@@ -693,7 +677,7 @@ export default function DataTable({
   }, [columns, columnVisibilityModel]);
 
   // Detect actual container width
-  React.useEffect(() => {
+  useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
         const width = containerRef.current.offsetWidth || containerRef.current.clientWidth;
@@ -712,21 +696,21 @@ export default function DataTable({
   }, []);
 
   // Log column statistics for analysis (when requested)
-  React.useEffect(() => {
+  useEffect(() => {
     if (showColumnStats && data && data.length > 0 && columns) {
       logColumnStatistics(data, columns);
     }
   }, [data, columns, showColumnStats]);
 
   // Handler for showing barcode
-  const handleShowBarcode = React.useCallback((recordId) => {
+  const handleShowBarcode = useCallback((recordId) => {
     setSelectedRowId(recordId);
     setBarcodeDialogOpen(true);
   }, []);
 
-  const muiColumns = React.useMemo(() => toMuiColumns(columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete), [columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete]);
+  const muiColumns = useMemo(() => toMuiColumns(columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete), [columns, data, widthPercentile, containerWidth, modelType, handleShowBarcode, handleEdit, confirmDelete]);
 
-  const rows = React.useMemo(() => {
+  const rows = useMemo(() => {
     const arr = data || [];
     // Ensure every row has an id; if caller provides getRowId, DataGrid will use it.
     if (getRowId) return arr;
@@ -737,7 +721,7 @@ export default function DataTable({
   }, [data, getRowId]);
 
   // Calculate total width needed for all columns (dynamic based on mode)
-  const totalColumnsWidth = React.useMemo(() => {
+  const totalColumnsWidth = useMemo(() => {
     return muiColumns.reduce((total, col) => {
       // For flex columns, estimate based on minWidth; for fixed, use width
       return total + (col.width || col.minWidth || 140);

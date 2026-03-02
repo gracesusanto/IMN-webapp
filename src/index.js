@@ -1,8 +1,7 @@
-import React from "react";
+import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 
 const theme = createTheme({
@@ -12,12 +11,12 @@ const theme = createTheme({
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <React.StrictMode>
+  <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <App />
     </ThemeProvider>
-  </React.StrictMode>
+  </StrictMode>
 );
 
 reportWebVitals();

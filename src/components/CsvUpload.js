@@ -1,10 +1,10 @@
-import * as React from "react";
+import { useState } from "react";
 import axios from "axios";
 import { Alert, Button, Stack, Typography } from "@mui/material";
 
 export default function CsvUpload({ onUploadSuccess, uploadUrl }) {
-  const [file, setFile] = React.useState(null);
-  const [status, setStatus] = React.useState({ type: "", text: "" });
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState({ type: "", text: "" });
 
   const handleFileChange = (event) => {
     setFile(event.target.files?.[0] || null);

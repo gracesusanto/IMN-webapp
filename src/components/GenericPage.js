@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 
@@ -14,13 +14,13 @@ export default function GenericPage({
   dataColumns,
   buttonText,
 }) {
-  const [data, setData] = React.useState([]);
-  const [currentItem, setCurrentItem] = React.useState({
+  const [data, setData] = useState([]);
+  const [currentItem, setCurrentItem] = useState({
     id: "",
     ...formFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {}),
   });
-  const [message, setMessage] = React.useState("");
-  const [errors, setErrors] = React.useState({});
+  const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({});
 
   const fetchData = () => {
     axios
@@ -32,7 +32,7 @@ export default function GenericPage({
       });
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,9 +103,12 @@ export default function GenericPage({
     ),
   };
 
-  const columnsWithActions = React.useMemo(
-    () => [...dataColumns, actionColumn],
-    [dataColumns]
+  // Only add action column for model tables (tooling, mesin, operator)
+  const isModelTable = ['tooling', 'mesin', 'operator'].includes(model.toLowerCase());
+
+  const columnsWithActions = useMemo(
+    () => isModelTable ? [...dataColumns, actionColumn] : dataColumns,
+    [dataColumns, isModelTable]
   );
 
   const handleDownloadBarcode = async () => {
@@ -143,6 +146,7 @@ export default function GenericPage({
             data={data}
             columns={columnsWithActions}
             exportFileName={`${model}_table`}
+            modelType={model}
             handleEdit={handleEdit}
             confirmDelete={confirmDelete}
           />

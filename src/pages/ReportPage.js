@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useState, useMemo } from "react";
 import axios from "axios";
 import {
   Box,
@@ -14,7 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 
-import DataTable from "./DataTable";
+import DataTable from "../components/DataTable";
+import { API_CONFIG } from "../constants/config";
 import styles from "./ReportPage.module.css";
 
 const getTodayDateJakarta = () => {
@@ -24,24 +25,24 @@ const getTodayDateJakarta = () => {
 };
 
 export default function ReportPage() {
-  const [reportType, setReportType] = React.useState("mesin");
-  const [format, setFormat] = React.useState("imn_dashboard");
-  const [dateFrom, setDateFrom] = React.useState(getTodayDateJakarta());
-  const [dateTo, setDateTo] = React.useState(getTodayDateJakarta());
-  const [shiftFrom, setShiftFrom] = React.useState(1);
-  const [shiftTo, setShiftTo] = React.useState(3);
+  const [reportType, setReportType] = useState("mesin");
+  const [format, setFormat] = useState("imn_dashboard");
+  const [dateFrom, setDateFrom] = useState(getTodayDateJakarta());
+  const [dateTo, setDateTo] = useState(getTodayDateJakarta());
+  const [shiftFrom, setShiftFrom] = useState(1);
+  const [shiftTo, setShiftTo] = useState(3);
 
-  const [data, setData] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [showFilters, setShowFilters] = React.useState(false);
-  const [filters, setFilters] = React.useState({
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
     "Reject Ratio": { gt: null, lt: null },
     "Rework Ratio": { gt: null, lt: null },
     Productivity: { gt: null, lt: null },
   });
 
-  const [sortConfig, setSortConfig] = React.useState({
+  const [sortConfig, setSortConfig] = useState({
     sort_by: null,
     direction: "ascending",
   });
@@ -115,7 +116,7 @@ export default function ReportPage() {
     }
   };
 
-  const columns = React.useMemo(() => {
+  const columns = useMemo(() => {
     return data.length > 0
       ? Object.keys(data[0]).map((key) => ({ Header: key, accessor: key }))
       : [];
