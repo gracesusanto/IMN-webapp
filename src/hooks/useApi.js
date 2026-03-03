@@ -66,7 +66,6 @@ export const useApi = (model) => {
 
     setLoading(true);
     setError(null);
-    console.log(`🌐 API CALL: Fetching ${model} data`);
 
     try {
       const response = await retryWithBackoff(() => axios.get(`${apiUrl}/`));

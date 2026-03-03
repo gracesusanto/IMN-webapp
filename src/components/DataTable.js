@@ -745,7 +745,7 @@ function DataTable({
       sx={{
         width: "100%",
         height,
-        overflow: 'auto', // Enable horizontal scrolling when needed
+        overflow: 'hidden', // Prevent container-level scrolling, let DataGrid handle it
       }}
     >
       {/* External Toolbar - This WILL show */}
@@ -905,7 +905,8 @@ function DataTable({
         onSortModelChange={setSortModel}
         className="imn-data-grid"
         sx={{
-          minWidth: totalColumnsWidth > containerWidth * 0.95 ? Math.max(600, totalColumnsWidth) : '100%', // Dynamic based on mode
+          width: '100%', // Force full width to prevent horizontal container scrolling
+          overflow: 'auto', // Let DataGrid handle its own scrolling
         }}
       />
 
