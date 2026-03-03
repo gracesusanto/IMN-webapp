@@ -412,6 +412,12 @@ function DataTable({
   const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState(null);
 
+  // Pagination state for MUI DataGrid v8 compatibility
+  const [paginationModel, setPaginationModel] = useState({
+    pageSize: 20,
+    page: 0
+  });
+
   const handleShowBarcode = useCallback((recordId) => {
     setSelectedRowId(recordId);
     setBarcodeDialogOpen(true);
@@ -432,6 +438,11 @@ function DataTable({
       return { id: idx, ...r };
     });
   }, [data, getRowId]);
+
+  // Reset to page 0 when the dataset meaningfully changes (e.g. search or new data)
+  useEffect(() => {
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  }, [debouncedSearch, rows.length]);
 
   // Visible fields for global search
   const visibleFields = useMemo(() => {
@@ -462,7 +473,10 @@ function DataTable({
       sx={{
         width: "100%",
         height,
+        display: "flex",
         overflow: "hidden",
+        flexDirection: "column",
+        minHeight: 0,
       }}
     >
       {/* External Toolbar */}
@@ -592,9 +606,8 @@ function DataTable({
         getRowHeight={() => "auto"}
         pagination
         pageSizeOptions={[10, 20, 50, 100]}
-        initialState={{
-          pagination: { paginationModel: { pageSize: 20, page: 0 } },
-        }}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
         columnVisibilityModel={columnVisibilityModel}
         onColumnVisibilityModelChange={setColumnVisibilityModel}
         sortModel={sortModel}
@@ -602,7 +615,7 @@ function DataTable({
         className="imn-data-grid"
         sx={{
           width: "100%",
-          overflow: "auto",
+          height: "100%",
         }}
       />
 
