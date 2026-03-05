@@ -525,11 +525,9 @@ function DataTable({
     <Box
       sx={{
         width: "100%",
-        height,
+        minHeight: height,
         display: "flex",
-        overflow: "hidden",
         flexDirection: "column",
-        minHeight: 0,
       }}
     >
       {/* External Toolbar */}
