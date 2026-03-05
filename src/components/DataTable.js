@@ -23,6 +23,15 @@ import ClearIcon from "@mui/icons-material/Clear";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import AddIcon from "@mui/icons-material/Add";
+import {
+  applyAdvancedFilters,
+  getColumnField,
+  getColumnHeader,
+  getFilterType,
+  getOperatorsForColumn,
+} from "../utils/filterUtils";
 import "./DataTable.css";
 
 /** Small debounce helper */
@@ -405,6 +414,9 @@ function DataTable({
   const [searchValue, setSearchValue] = useState("");
   const debouncedSearch = useDebouncedValue(searchValue, 200);
 
+  const [filters, setFilters] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const [sortModel, setSortModel] = useState([]);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
@@ -439,10 +451,10 @@ function DataTable({
     });
   }, [data, getRowId]);
 
-  // Reset to page 0 when the dataset meaningfully changes (e.g. search or new data)
+  // Reset to page 0 when the dataset meaningfully changes (e.g. search or new data or filter)
   useEffect(() => {
     setPaginationModel((prev) => ({ ...prev, page: 0 }));
-  }, [debouncedSearch, rows.length]);
+  }, [debouncedSearch, rows.length, filters]);
 
   // Visible fields for global search
   const visibleFields = useMemo(() => {
@@ -451,8 +463,45 @@ function DataTable({
       .filter((f) => f && columnVisibilityModel[f] !== false);
   }, [columns, columnVisibilityModel]);
 
+  // Column filters
+  const filterableColumns = useMemo(() => {
+    return (columns || []).filter((c) => !!c.filter);
+  }, [columns]);
+
+  const addFilter = () => {
+    const firstColumn = filterableColumns[0];
+    if (!firstColumn) return;
+
+    const field = getColumnField(firstColumn);
+    const operators = getOperatorsForColumn(firstColumn);
+
+    setFilters((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${prev.length}`,
+        field,
+        operator: operators[0] || "contains",
+        value: "",
+        valueTo: "",
+      },
+    ]);
+  };
+
+  const removeFilter = (id) => {
+    setFilters((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const updateFilter = (id, patch) => {
+    setFilters((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...patch } : f))
+    );
+  };
+
+  const clearFilters = () => setFilters([]);
+
   // Client-side global filter (Community-safe, 500 rows is fine)
-  const filteredRows = useMemo(() => {
+  // Search on top of filter
+  const searchFilteredRows = useMemo(() => {
     const q = String(debouncedSearch || "").trim().toLowerCase();
     if (!q) return rows;
 
@@ -465,6 +514,10 @@ function DataTable({
       return false;
     });
   }, [rows, debouncedSearch, visibleFields]);
+
+  const filteredRows = useMemo(() => {
+    return applyAdvancedFilters(searchFilteredRows, filters, columns || []);
+  }, [searchFilteredRows, filters, columns]);
 
   const activeSearch = Boolean(String(searchValue || "").trim());
 
@@ -522,6 +575,16 @@ function DataTable({
             sx={{ fontSize: "0.75rem" }}
           >
             Search
+          </Button>
+
+          <Button
+            variant={filterOpen ? "contained" : "outlined"}
+            size="small"
+            startIcon={<FilterAltIcon />}
+            onClick={() => setFilterOpen((s) => !s)}
+            sx={{ fontSize: "0.75rem" }}
+          >
+            Filters {filters.length > 0 && `(${filters.length})`}
           </Button>
 
           {activeSearch && (
@@ -592,6 +655,141 @@ function DataTable({
               <ClearIcon />
             </IconButton>
           </Stack>
+        )}
+
+        {filterOpen && (
+          <Box
+            sx={{
+              p: 2,
+              border: "1px solid #e2e8f0",
+              borderRadius: 2,
+              backgroundColor: "white",
+            }}
+          >
+            <Stack spacing={2}>
+              {filters.map((filter) => {
+                const selectedColumn = filterableColumns.find(
+                  (c) => getColumnField(c) === filter.field
+                );
+                const operators = getOperatorsForColumn(selectedColumn);
+                const type = getFilterType(selectedColumn);
+
+                return (
+                  <Stack
+                    key={filter.id}
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    flexWrap="wrap"
+                  >
+                    <TextField
+                      select
+                      label="Column"
+                      size="small"
+                      value={filter.field}
+                      sx={{ minWidth: 180 }}
+                      onChange={(e) => {
+                        const nextColumn = filterableColumns.find(
+                          (c) => getColumnField(c) === e.target.value
+                        );
+                        const nextOperators = getOperatorsForColumn(nextColumn);
+
+                        updateFilter(filter.id, {
+                          field: e.target.value,
+                          operator: nextOperators[0] || "contains",
+                          value: "",
+                          valueTo: "",
+                        });
+                      }}
+                    >
+                      {filterableColumns.map((col) => (
+                        <MenuItem
+                          key={getColumnField(col)}
+                          value={getColumnField(col)}
+                        >
+                          {getColumnHeader(col)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    <TextField
+                      select
+                      label="Operator"
+                      size="small"
+                      value={filter.operator}
+                      sx={{ minWidth: 150 }}
+                      onChange={(e) =>
+                        updateFilter(filter.id, {
+                          operator: e.target.value,
+                          value: "",
+                          valueTo: "",
+                        })
+                      }
+                    >
+                      {operators.map((op) => (
+                        <MenuItem key={op} value={op}>
+                          {op}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    {filter.operator !== "isEmpty" && filter.operator !== "isNotEmpty" && (
+                      <TextField
+                        label="Value"
+                        size="small"
+                        type={type === "number" ? "number" : type === "date" ? "datetime-local" : "text"}
+                        value={filter.value}
+                        onChange={(e) =>
+                          updateFilter(filter.id, { value: e.target.value })
+                        }
+                      />
+                    )}
+
+                    {filter.operator === "between" && (
+                      <TextField
+                        label="To"
+                        size="small"
+                        type={type === "number" ? "number" : type === "date" ? "datetime-local" : "text"}
+                        value={filter.valueTo}
+                        onChange={(e) =>
+                          updateFilter(filter.id, { valueTo: e.target.value })
+                        }
+                      />
+                    )}
+
+                    <IconButton
+                      onClick={() => removeFilter(filter.id)}
+                      size="small"
+                      title="Remove"
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  </Stack>
+                );
+              })}
+
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={addFilter}
+                  size="small"
+                  disabled={filterableColumns.length === 0}
+                >
+                  Add Filter
+                </Button>
+
+                <Button
+                  variant="text"
+                  onClick={clearFilters}
+                  size="small"
+                  disabled={filters.length === 0}
+                >
+                  Clear Filters
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
         )}
       </Box>
 
