@@ -17,12 +17,61 @@ import {
 import DataTable from "../components/DataTable";
 import { API_CONFIG } from "../constants/config";
 import styles from "./ReportPage.module.css";
+import { REPORT_FILTER_FIELDS, REPORT_OPERATORS } from '../constants/formFields';
 
 const getTodayDateJakarta = () => {
   const now = new Date();
   const jakartaTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
   return jakartaTime.toISOString().split("T")[0];
 };
+
+// filter related functions
+function emptyFilterRule(fieldConfig) {
+  const firstOperator = REPORT_OPERATORS[fieldConfig.type][0]?.value || "contains";
+  return {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
+    field: fieldConfig.field,
+    type: fieldConfig.type,
+    operator: firstOperator,
+    value: "",
+    valueTo: "",
+  };
+}
+
+function buildBackendFilters(filterRules) {
+  const result = {};
+
+  for (const rule of filterRules) {
+    if (!rule.field || !rule.operator) continue;
+
+    const value = rule.value;
+    const valueTo = rule.valueTo;
+
+    const isBlank = value === "" || value === null || value === undefined;
+    const isBlankTo = valueTo === "" || valueTo === null || valueTo === undefined;
+
+    if (rule.operator !== "between" && isBlank) continue;
+    if (rule.operator === "between" && isBlank && isBlankTo) continue;
+
+    const payload = { type: rule.type };
+
+    if (rule.operator === "between") {
+      payload.between = [
+        isBlank ? null : value,
+        isBlankTo ? null : valueTo,
+      ];
+    } else {
+      payload[rule.operator] = value;
+    }
+
+    result[rule.field] = {
+      ...(result[rule.field] || {}),
+      ...payload,
+    };
+  }
+
+  return result;
+}
 
 export default function ReportPage() {
   const [reportType, setReportType] = useState("mesin");
@@ -32,46 +81,30 @@ export default function ReportPage() {
   const [shiftFrom, setShiftFrom] = useState(1);
   const [shiftTo, setShiftTo] = useState(3);
 
-  const [data, setData] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [rowCount, setRowCount] = useState(0);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 20,
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    "Reject Ratio": { gt: null, lt: null },
-    "Rework Ratio": { gt: null, lt: null },
-    Productivity: { gt: null, lt: null },
-  });
+  const [filters, setFilters] = useState([]);
 
   const [sortConfig, setSortConfig] = useState({
     sort_by: null,
     direction: "ascending",
   });
 
-  const handleFilterChange = (filterName, condition, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterName]: {
-        ...prev[filterName],
-        [condition]: value === "" ? null : value,
-      },
-    }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      Productivity: { gt: null, lt: null },
-      "Reject Ratio": { gt: null, lt: null },
-      "Rework Ratio": { gt: null, lt: null },
-    });
-  };
-
-  const fetchReport = async (download = false, sortConfigOverride = null) => {
+  const fetchReport = async (download = false, sortConfigOverride = null, pageOverride = null) => {
     setIsLoading(true);
 
     let requestFormat = format;
     if (download) requestFormat = format.replace("_dashboard", "");
 
     const effectiveSort = sortConfigOverride !== null ? sortConfigOverride : sortConfig;
+    const effectivePage = pageOverride !== null ? pageOverride : paginationModel;
 
     const requestData = {
       format: requestFormat,
@@ -79,10 +112,19 @@ export default function ReportPage() {
       shift_from: shiftFrom,
       date_to: dateTo,
       shift_to: shiftTo,
-      filters,
+      filters: buildBackendFilters(filters),
     };
 
-    if (effectiveSort?.sort_by) requestData.sort = effectiveSort;
+    if (!download) {
+      requestData.pagination = {
+        page: effectivePage.page + 1,
+        page_size: effectivePage.pageSize,
+      };
+    }
+
+    if (effectiveSort?.sort_by) {
+      requestData.sort = effectiveSort;
+    }
 
     try {
       const response = await axios.post(
@@ -98,6 +140,7 @@ export default function ReportPage() {
           const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
           if (filenameMatch?.[1]) filename = filenameMatch[1];
         }
+
         const fileURL = window.URL.createObjectURL(new Blob([response.data]));
         const fileLink = document.createElement("a");
         fileLink.href = fileURL;
@@ -107,7 +150,8 @@ export default function ReportPage() {
         fileLink.remove();
         window.URL.revokeObjectURL(fileURL);
       } else {
-        setData(response.data);
+        setRows(response.data.rows || []);
+        setRowCount(response.data.total || 0);
       }
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -117,10 +161,33 @@ export default function ReportPage() {
   };
 
   const columns = useMemo(() => {
-    return data.length > 0
-      ? Object.keys(data[0]).map((key) => ({ Header: key, accessor: key }))
+    return rows.length > 0
+      ? Object.keys(rows[0]).map((key) => ({ Header: key, accessor: key }))
       : [];
-  }, [data]);
+  }, [rows]);
+
+  const activeFilterFields = useMemo(
+    () => REPORT_FILTER_FIELDS[reportType] || [],
+    [reportType]
+  );
+
+  const addFilter = () => {
+    if (activeFilterFields.length === 0) return;
+    setFilters((prev) => [...prev, emptyFilterRule(activeFilterFields[0])]);
+  };
+
+  const updateFilter = (id, patch) => {
+    setFilters((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  };
+
+  const removeFilter = (id) => {
+    setFilters((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const resetFilters = () => {
+    setFilters([]);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  };
 
   return (
     <Stack spacing={2}>
@@ -136,7 +203,14 @@ export default function ReportPage() {
               <Select
                 label="Report Type"
                 value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setReportType(nextType);
+                  setFilters([]);
+                  setRows([]);
+                  setRowCount(0);
+                  setPaginationModel((prev) => ({ ...prev, page: 0 }));
+                }}
               >
                 <MenuItem value="mesin">Mesin</MenuItem>
                 <MenuItem value="operator">Operator</MenuItem>
@@ -200,8 +274,8 @@ export default function ReportPage() {
             <Button
               variant="contained"
               onClick={() => {
-                resetFilters();
-                fetchReport(false);
+                setPaginationModel((prev) => ({ ...prev, page: 0 }));
+                fetchReport(false, null, { ...paginationModel, page: 0 });
               }}
               disabled={isLoading}
             >
@@ -220,55 +294,114 @@ export default function ReportPage() {
           <Collapse in={showFilters}>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               <Stack spacing={2}>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                  {["Productivity", "Reject Ratio", "Rework Ratio"].map((filterType) => (
-                    <Box key={filterType} sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                        {filterType}
-                      </Typography>
-                      <Stack direction="row" spacing={1}>
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Min"
-                          inputProps={{ step: 0.01 }}
-                          value={filters[filterType]?.gt ?? ""}
-                          onChange={(e) =>
-                            handleFilterChange(
-                              filterType,
-                              "gt",
-                              e.target.value === "" ? "" : parseFloat(e.target.value)
-                            )
-                          }
-                          fullWidth
-                        />
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Max"
-                          inputProps={{ step: 0.01 }}
-                          value={filters[filterType]?.lt ?? ""}
-                          onChange={(e) =>
-                            handleFilterChange(
-                              filterType,
-                              "lt",
-                              e.target.value === "" ? "" : parseFloat(e.target.value)
-                            )
-                          }
-                          fullWidth
-                        />
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
+                {filters.map((filter) => {
+                  const fieldConfig =
+                    activeFilterFields.find((f) => f.field === filter.field) || activeFilterFields[0];
 
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Button variant="text" onClick={resetFilters} disabled={isLoading}>
-                    Reset
+                  const type = fieldConfig?.type || "string";
+                  const operators = REPORT_OPERATORS[type] || REPORT_OPERATORS.string;
+
+                  return (
+                    <Stack
+                      key={filter.id}
+                      direction={{ xs: "column", md: "row" }}
+                      spacing={1}
+                      alignItems={{ md: "center" }}
+                    >
+                      <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <InputLabel>Field</InputLabel>
+                        <Select
+                          label="Field"
+                          value={filter.field}
+                          onChange={(e) => {
+                            const nextField = activeFilterFields.find((f) => f.field === e.target.value);
+                            updateFilter(filter.id, {
+                              field: nextField.field,
+                              type: nextField.type,
+                              operator: REPORT_OPERATORS[nextField.type][0].value,
+                              value: "",
+                              valueTo: "",
+                            });
+                          }}
+                        >
+                          {activeFilterFields.map((f) => (
+                            <MenuItem key={f.field} value={f.field}>
+                              {f.field}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel>Operator</InputLabel>
+                        <Select
+                          label="Operator"
+                          value={filter.operator}
+                          onChange={(e) =>
+                            updateFilter(filter.id, {
+                              operator: e.target.value,
+                              value: "",
+                              valueTo: "",
+                            })
+                          }
+                        >
+                          {operators.map((op) => (
+                            <MenuItem key={op.value} value={op.value}>
+                              {op.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <TextField
+                        size="small"
+                        label="Value"
+                        type={type === "number" ? "number" : type === "date" ? "datetime-local" : "text"}
+                        value={filter.value}
+                        onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                        InputLabelProps={type === "date" ? { shrink: true } : undefined}
+                        sx={{ minWidth: 220 }}
+                      />
+
+                      {filter.operator === "between" && (
+                        <TextField
+                          size="small"
+                          label="To"
+                          type={type === "number" ? "number" : type === "date" ? "datetime-local" : "text"}
+                          value={filter.valueTo}
+                          onChange={(e) => updateFilter(filter.id, { valueTo: e.target.value })}
+                          InputLabelProps={type === "date" ? { shrink: true } : undefined}
+                          sx={{ minWidth: 220 }}
+                        />
+                      )}
+
+                      <Button color="error" onClick={() => removeFilter(filter.id)}>
+                        Remove
+                      </Button>
+                    </Stack>
+                  );
+                })}
+
+                <Stack direction="row" spacing={1} justifyContent="space-between">
+                  <Button variant="outlined" onClick={addFilter}>
+                    Add Filter
                   </Button>
-                  <Button variant="contained" onClick={() => fetchReport(false)} disabled={isLoading}>
-                    Apply Filters
-                  </Button>
+
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="text" onClick={resetFilters} disabled={isLoading}>
+                      Reset
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => {
+                        setPaginationModel((prev) => ({ ...prev, page: 0 }));
+                        fetchReport(false, null, { ...paginationModel, page: 0 });
+                      }}
+                      disabled={isLoading}
+                    >
+                      Apply Filters
+                    </Button>
+                  </Stack>
                 </Stack>
               </Stack>
             </Paper>
@@ -321,13 +454,24 @@ export default function ReportPage() {
           </div>
         )}
 
-        {!isLoading && data.length > 0 && (
+        {!isLoading && rows.length > 0 && (
           <Stack spacing={1.5}>
             <DataTable
               columns={columns}
-              data={data}
+              data={rows}
               exportFileName={`${reportType}_report_preview`}
               height={680}
+              loading={isLoading}
+              serverPagination
+              rowCount={rowCount}
+              externalPaginationModel={paginationModel}
+              onExternalPaginationModelChange={(next) => {
+                setPaginationModel(next);
+                fetchReport(false, null, next);
+              }}
+              disableClientSearch
+              disableClientFilters
+              disableClientSort
             />
 
             <Stack direction="row" justifyContent="flex-end">

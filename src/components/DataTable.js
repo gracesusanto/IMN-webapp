@@ -406,6 +406,15 @@ function DataTable({
   confirmDelete,
   exportCsv,
   getBarcodeUrl,
+
+  loading = false,
+  serverPagination = false,
+  rowCount = 0,
+  externalPaginationModel,
+  onExternalPaginationModelChange,
+  disableClientSearch = false,
+  disableClientFilters = false,
+  disableClientSort = false,
 }) {
   const [columnVisibilityModel, setColumnVisibilityModel] = useState({});
 
@@ -425,10 +434,18 @@ function DataTable({
   const [selectedRowId, setSelectedRowId] = useState(null);
 
   // Pagination state for MUI DataGrid v8 compatibility
-  const [paginationModel, setPaginationModel] = useState({
+  const [internalPaginationModel, setInternalPaginationModel] = useState({
     pageSize: 20,
-    page: 0
+    page: 0,
   });
+
+  const paginationModel = serverPagination
+    ? (externalPaginationModel || { page: 0, pageSize: 20 })
+    : internalPaginationModel;
+
+  const setPaginationModel = serverPagination
+    ? (onExternalPaginationModelChange || (() => {}))
+    : setInternalPaginationModel;
 
   const handleShowBarcode = useCallback((recordId) => {
     setSelectedRowId(recordId);
@@ -453,8 +470,10 @@ function DataTable({
 
   // Reset to page 0 when the dataset meaningfully changes (e.g. search or new data or filter)
   useEffect(() => {
-    setPaginationModel((prev) => ({ ...prev, page: 0 }));
-  }, [debouncedSearch, rows.length, filters]);
+    if (!serverPagination) {
+      setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    }
+  }, [debouncedSearch, rows.length, filters, serverPagination]);
 
   // Visible fields for global search
   const visibleFields = useMemo(() => {
@@ -502,6 +521,8 @@ function DataTable({
   // Client-side global filter (Community-safe, 500 rows is fine)
   // Search on top of filter
   const searchFilteredRows = useMemo(() => {
+    if (serverPagination || disableClientSearch) return rows;
+
     const q = String(debouncedSearch || "").trim().toLowerCase();
     if (!q) return rows;
 
@@ -513,11 +534,12 @@ function DataTable({
       }
       return false;
     });
-  }, [rows, debouncedSearch, visibleFields]);
+  }, [rows, debouncedSearch, visibleFields, serverPagination, disableClientSearch]);
 
   const filteredRows = useMemo(() => {
+    if (serverPagination || disableClientFilters) return searchFilteredRows;
     return applyAdvancedFilters(searchFilteredRows, filters, columns || []);
-  }, [searchFilteredRows, filters, columns]);
+  }, [searchFilteredRows, filters, columns, serverPagination, disableClientFilters]);
 
   const activeSearch = Boolean(String(searchValue || "").trim());
 
@@ -554,36 +576,42 @@ function DataTable({
             Columns ({visibleFields.length})
           </Button>
 
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<SortIcon />}
-            onClick={() => setSortDialogOpen(true)}
-            sx={{ fontSize: "0.75rem" }}
-            color={sortModel?.length > 0 ? "primary" : "inherit"}
-          >
-            Sort {sortModel?.length > 0 && `(${sortModel.length})`}
-          </Button>
+          {!disableClientSort && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<SortIcon />}
+              onClick={() => setSortDialogOpen(true)}
+              sx={{ fontSize: "0.75rem" }}
+              color={sortModel?.length > 0 ? "primary" : "inherit"}
+            >
+              Sort {sortModel?.length > 0 && `(${sortModel.length})`}
+            </Button>
+          )}
 
-          <Button
-            variant={searchOpen ? "contained" : "outlined"}
-            size="small"
-            startIcon={<SearchIcon />}
-            onClick={() => setSearchOpen((s) => !s)}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            Search
-          </Button>
+          {!disableClientSearch && (
+            <Button
+              variant={searchOpen ? "contained" : "outlined"}
+              size="small"
+              startIcon={<SearchIcon />}
+              onClick={() => setSearchOpen((s) => !s)}
+              sx={{ fontSize: "0.75rem" }}
+            >
+              Search
+            </Button>
+          )}
 
-          <Button
-            variant={filterOpen ? "contained" : "outlined"}
-            size="small"
-            startIcon={<FilterAltIcon />}
-            onClick={() => setFilterOpen((s) => !s)}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            Filters {filters.length > 0 && `(${filters.length})`}
-          </Button>
+          {!disableClientFilters && (
+            <Button
+              variant={filterOpen ? "contained" : "outlined"}
+              size="small"
+              startIcon={<FilterAltIcon />}
+              onClick={() => setFilterOpen((s) => !s)}
+              sx={{ fontSize: "0.75rem" }}
+            >
+              Filters {filters.length > 0 && `(${filters.length})`}
+            </Button>
+          )}
 
           {activeSearch && (
             <Chip
@@ -795,19 +823,23 @@ function DataTable({
         rows={filteredRows}
         columns={muiColumns}
         getRowId={getRowId}
+        loading={loading}
+        rowCount={serverPagination ? rowCount : undefined}
+        pagination
+        paginationMode={serverPagination ? "server" : "client"}
+        sortingMode={serverPagination ? "server" : "client"}
         disableRowSelectionOnClick
         disableColumnReorder
         disableColumnMenu={false}
         columnHeaderHeight={56}
         getRowHeight={() => "auto"}
-        pagination
         pageSizeOptions={[10, 20, 50, 100]}
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         columnVisibilityModel={columnVisibilityModel}
         onColumnVisibilityModelChange={setColumnVisibilityModel}
-        sortModel={sortModel}
-        onSortModelChange={setSortModel}
+        sortModel={disableClientSort ? [] : sortModel}
+        onSortModelChange={disableClientSort ? undefined : setSortModel}
         className="imn-data-grid"
         sx={{
           width: "100%",
@@ -824,13 +856,15 @@ function DataTable({
         onColumnVisibilityChange={setColumnVisibilityModel}
       />
 
-      <MultiSortDialog
-        open={sortDialogOpen}
-        onClose={() => setSortDialogOpen(false)}
-        columns={columns}
-        sortModel={sortModel}
-        onSortChange={setSortModel}
-      />
+      {!disableClientSort && (
+        <MultiSortDialog
+          open={sortDialogOpen}
+          onClose={() => setSortDialogOpen(false)}
+          columns={columns}
+          sortModel={sortModel}
+          onSortChange={setSortModel}
+        />
+      )}
 
       <BarcodeDialog
         open={barcodeDialogOpen}
