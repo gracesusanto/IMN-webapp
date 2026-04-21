@@ -481,6 +481,14 @@ export default function ReportPage() {
             </Stack>
           </Stack>
         )}
+
+        {!isLoading && rows.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography variant="h6" color="text.secondary">
+              No data available. Click "Show" to load report data.
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Stack>
   );

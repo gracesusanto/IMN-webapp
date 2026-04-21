@@ -13,6 +13,7 @@ import OperatorPage from "./pages/OperatorPage";
 import MesinPage from "./pages/MesinPage";
 import RunningMesinPage from "./pages/RunningMesinPage";
 import ReportPage from "./pages/ReportPage";
+import NavigatorPage from "./pages/NavigatorPage";
 import { NAVIGATION_TABS, APP_CONFIG, ROUTES } from "./constants/config";
 
 function NavTabs() {
@@ -56,6 +57,7 @@ export default function App() {
             <Route path={ROUTES.MESIN} element={<MesinPage />} />
             <Route path={ROUTES.RUNNING_MESIN} element={<RunningMesinPage />} />
             <Route path={ROUTES.REPORT} element={<ReportPage />} />
+            <Route path={ROUTES.NAVIGATOR} element={<NavigatorPage />} />
             <Route path="*" element={<Navigate to={APP_CONFIG.DEFAULT_ROUTE} replace />} />
           </Routes>
         </Container>
