@@ -10,7 +10,7 @@ export const ROUTES = {
   MESIN: '/mesin',
   RUNNING_MESIN: '/running-mesin',
   REPORT: '/report',
-  NAVIGATOR: '/navigator',
+  DASHBOARD: '/dashboard',
 };
 
 export const NAVIGATION_TABS = [
@@ -19,7 +19,7 @@ export const NAVIGATION_TABS = [
   { label: "Mesin", to: ROUTES.MESIN },
   { label: "Running Mesin", to: ROUTES.RUNNING_MESIN },
   { label: "Report", to: ROUTES.REPORT },
-  { label: "📊 Navigator", to: ROUTES.NAVIGATOR },
+  { label: "📊 Dashboard", to: ROUTES.DASHBOARD },
 ];
 
 export const APP_CONFIG = {

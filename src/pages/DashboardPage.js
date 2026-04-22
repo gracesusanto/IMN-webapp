@@ -8,6 +8,9 @@ import {
   Tabs,
   Tab,
   Paper,
+  Autocomplete,
+  TextField,
+  Chip,
 } from "@mui/material";
 
 // Import our new dashboard components
@@ -24,8 +27,10 @@ import { REPORT_FILTER_FIELDS, REPORT_OPERATORS } from '../constants/formFields'
 
 const getTodayDateJakarta = () => {
   const now = new Date();
-  const jakartaTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-  return jakartaTime.toISOString().split("T")[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Filter utility functions
@@ -40,7 +45,7 @@ function emptyFilterRule(fieldConfig) {
   };
 }
 
-function buildBackendFilters(filterRules, mcFilter = "", opFilter = "") {
+function buildBackendFilters(filterRules, selectedMachines = [], selectedOperators = []) {
   const result = {};
 
   // Add standard filters
@@ -53,18 +58,20 @@ function buildBackendFilters(filterRules, mcFilter = "", opFilter = "") {
     };
   }
 
-  // Add MC and OP filters
-  if (mcFilter) {
-    result.mc = { type: "string", contains: mcFilter };
+  // Add MC filters - use selectedMachines dropdown
+  if (selectedMachines.length > 0) {
+    result.mc = { type: "string", in: selectedMachines };
   }
-  if (opFilter) {
-    result.operator = { type: "string", contains: opFilter };
+
+  // Add Operator filters - use selectedOperators dropdown
+  if (selectedOperators.length > 0) {
+    result.operator = { type: "string", in: selectedOperators };
   }
 
   return result;
 }
 
-export default function NavigatorPage() {
+export default function DashboardPage() {
   // Core state
   const [reportType, setReportType] = useState("mesin");
   const [dateFrom, setDateFrom] = useState(getTodayDateJakarta());
@@ -75,16 +82,19 @@ export default function NavigatorPage() {
   // Data state
   const [dashboardData, setDashboardData] = useState(null);
   const [detailData, setDetailData] = useState([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   // UI state
   const [activeTab, setActiveTab] = useState(0);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Filter state
-  const [mcFilter, setMcFilter] = useState("");
-  const [opFilter, setOpFilter] = useState("");
+  // Filter state (text filters removed - using dropdown selectors only)
   const [filters, setFilters] = useState([]);
+  const [availableMachines, setAvailableMachines] = useState([]);
+  const [selectedMachines, setSelectedMachines] = useState([]);
+  const [availableOperators, setAvailableOperators] = useState([]);
+  const [selectedOperators, setSelectedOperators] = useState([]);
 
   // Pagination state (for detail table)
   const [detailPagination, setDetailPagination] = useState({
@@ -113,9 +123,21 @@ export default function NavigatorPage() {
 
   const resetFilters = () => {
     setFilters([]);
-    setMcFilter("");
-    setOpFilter("");
+    setSelectedMachines([]);
+    setSelectedOperators([]);
     setDetailPagination({ page: 0, pageSize: 20 });
+  };
+
+  // Extract available machines from current data
+  const extractAvailableMachines = (data) => {
+    const machines = [...new Set(data.map(row => row.mc_no).filter(mc => mc && mc !== '-'))];
+    return machines.sort();
+  };
+
+  // Extract available operators from current data
+  const extractAvailableOperators = (data) => {
+    const operators = [...new Set(data.map(row => row.operator).filter(op => op && op !== '-'))];
+    return operators.sort();
   };
 
   // API fetch functions
@@ -131,7 +153,7 @@ export default function NavigatorPage() {
         shift_from: shiftFrom,
         date_to: dateTo,
         shift_to: shiftTo,
-        filters: buildBackendFilters(filters, mcFilter, opFilter),
+        filters: buildBackendFilters(filters, selectedMachines, selectedOperators),
       };
 
       const response = await axios.post(`${API_CONFIG.BASE_URL}${endpoint}`, requestData);
@@ -147,26 +169,59 @@ export default function NavigatorPage() {
   const fetchDetailData = async (page = 0, pageSize = 20) => {
     setIsLoading(true);
 
+    // Clear stale rows before new fetch to avoid flash of old data
+    setDetailData([]);
+    setTotalRows(0);
+
     try {
       const endpoint = `/api/reports/dashboard/detail`;
       const requestData = {
         report_type: reportType,
-        date_from: dateFrom,
-        shift_from: shiftFrom,
-        date_to: dateTo,
-        shift_to: shiftTo,
-        filters: buildBackendFilters(filters, mcFilter, opFilter),
+        date_from: dateFrom || null,
+        shift_from: shiftFrom || 1,
+        date_to: dateTo || null,
+        shift_to: shiftTo || 3,
+        filters: buildBackendFilters(filters, selectedMachines, selectedOperators),
         pagination: {
           page: page + 1, // Backend uses 1-based pagination
           page_size: pageSize,
         },
       };
 
+      // Dev logging for debugging filtering issues
+      console.log('Request payload:', requestData);
+
       const response = await axios.post(`${API_CONFIG.BASE_URL}${endpoint}`, requestData);
-      setDetailData(response.data.rows || []);
+
+      const newData = response.data.rows || [];
+      const total = response.data.total || 0;
+
+      // Dev logging - check first returned row
+      if (newData.length > 0) {
+        console.log('First returned row:', {
+          tanggal: newData[0].tanggal,
+          shift: newData[0].shift,
+          mc_no: newData[0].mc_no,
+        });
+      }
+
+      setDetailData(newData);
+      setTotalRows(total);
+
+      // Update available machines and operators from the current data
+      setAvailableMachines(extractAvailableMachines(newData));
+      setAvailableOperators(extractAvailableOperators(newData));
     } catch (error) {
       console.error("Error fetching detail data:", error);
+      console.error("Request that failed:", {
+        report_type: reportType,
+        date_from: dateFrom,
+        date_to: dateTo,
+        shift_from: shiftFrom,
+        shift_to: shiftTo,
+      });
       setDetailData([]);
+      setTotalRows(0);
     } finally {
       setIsLoading(false);
     }
@@ -181,7 +236,7 @@ export default function NavigatorPage() {
         shift_from: shiftFrom,
         date_to: dateTo,
         shift_to: shiftTo,
-        filters: buildBackendFilters(filters, mcFilter, opFilter),
+        filters: buildBackendFilters(filters, selectedMachines, selectedOperators),
       };
 
       const response = await axios.post(
@@ -193,7 +248,7 @@ export default function NavigatorPage() {
       const fileURL = window.URL.createObjectURL(new Blob([response.data]));
       const fileLink = document.createElement("a");
       fileLink.href = fileURL;
-      fileLink.setAttribute("download", `${reportType}_navigator_report.csv`);
+      fileLink.setAttribute("download", `${reportType}_dashboard_report.csv`);
       document.body.appendChild(fileLink);
       fileLink.click();
       fileLink.remove();
@@ -205,6 +260,9 @@ export default function NavigatorPage() {
 
   // Event handlers
   const handleApplyFilters = () => {
+    // Reset pagination to page 0 when filters change
+    setDetailPagination(prev => ({ ...prev, page: 0 }));
+
     if (activeTab === 0) {
       fetchDetailData(0, detailPagination.pageSize);
     } else {
@@ -214,6 +272,9 @@ export default function NavigatorPage() {
 
   const handleResetFilters = () => {
     resetFilters();
+    // Reset pagination to page 0 when filters are reset
+    setDetailPagination({ page: 0, pageSize: 20 });
+
     if (activeTab === 0) {
       fetchDetailData(0, 20);
     } else {
@@ -241,10 +302,12 @@ export default function NavigatorPage() {
   const handleReportTypeChange = (newReportType) => {
     setReportType(newReportType);
     setFilters([]);
-    setMcFilter("");
-    setOpFilter("");
+    setSelectedMachines([]);
+    setSelectedOperators([]);
     setDashboardData(null);
+    // Clear stale data immediately when changing report type
     setDetailData([]);
+    setTotalRows(0);
     setDetailPagination({ page: 0, pageSize: 20 });
   };
 
@@ -261,7 +324,7 @@ export default function NavigatorPage() {
   return (
     <Stack spacing={2}>
       <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-        📊 Navigator Dashboard
+        📊 Production Dashboard
       </Typography>
 
       {/* Dashboard Filters */}
@@ -276,10 +339,6 @@ export default function NavigatorPage() {
         setShiftFrom={setShiftFrom}
         shiftTo={shiftTo}
         setShiftTo={setShiftTo}
-        mcFilter={mcFilter}
-        setMcFilter={setMcFilter}
-        opFilter={opFilter}
-        setOpFilter={setOpFilter}
         showAdvancedFilters={showAdvancedFilters}
         setShowAdvancedFilters={setShowAdvancedFilters}
         filters={filters}
@@ -291,7 +350,15 @@ export default function NavigatorPage() {
         updateFilter={updateFilter}
         removeFilter={removeFilter}
         addFilter={addFilter}
+        // New props for machine and operator selection
+        availableMachines={availableMachines}
+        selectedMachines={selectedMachines}
+        setSelectedMachines={setSelectedMachines}
+        availableOperators={availableOperators}
+        selectedOperators={selectedOperators}
+        setSelectedOperators={setSelectedOperators}
       />
+
 
       {/* Tab Navigation */}
       <Paper sx={{ borderRadius: 2 }}>
@@ -334,11 +401,34 @@ export default function NavigatorPage() {
 
       {/* Tab Content */}
       <Box sx={{ minHeight: '600px' }}>
+        {/* Active Filter Summary */}
+        {!isLoading && (detailData.length > 0 || totalRows > 0) && (
+          <Paper sx={{ p: 2, mb: 2, backgroundColor: 'info.light' }}>
+            <Typography variant="body2" color="info.contrastText">
+              Showing {reportType === 'mesin' ? 'Machine' : 'Operator'} Report for{' '}
+              <strong>{dateFrom}</strong> to <strong>{dateTo}</strong>, shifts{' '}
+              <strong>{shiftFrom}–{shiftTo}</strong>
+              {selectedMachines.length > 0 && (
+                <span>, machines: <strong>{selectedMachines.join(', ')}</strong></span>
+              )}
+              {selectedOperators.length > 0 && (
+                <span>, operators: <strong>{selectedOperators.join(', ')}</strong></span>
+              )}
+              {filters.length > 0 && (
+                <span>, {filters.length} advanced filter{filters.length > 1 ? 's' : ''}</span>
+              )}
+            </Typography>
+            <Typography variant="caption" color="info.contrastText">
+              Total: {totalRows} records
+            </Typography>
+          </Paper>
+        )}
+
         {/* Report Table - Always show since it's the only tab now */}
         <ReportTable
           data={detailData}
           reportType={reportType}
-          rowCount={detailData.length}
+          rowCount={totalRows}
           page={detailPagination.page}
           pageSize={detailPagination.pageSize}
           onPageChange={handlePageChange}
@@ -380,7 +470,7 @@ export default function NavigatorPage() {
         )}
 
         {/* Empty State - Only for Report Table now */}
-        {!isLoading && detailData.length === 0 && (
+        {!isLoading && detailData.length === 0 && totalRows === 0 && (
           <Box sx={{
             textAlign: 'center',
             py: 8,

@@ -11,6 +11,8 @@ import {
   Stack,
   TextField,
   Typography,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 
 const DashboardFilters = ({
@@ -24,10 +26,6 @@ const DashboardFilters = ({
   setShiftFrom,
   shiftTo,
   setShiftTo,
-  mcFilter,
-  setMcFilter,
-  opFilter,
-  setOpFilter,
   showAdvancedFilters,
   setShowAdvancedFilters,
   filters,
@@ -39,6 +37,13 @@ const DashboardFilters = ({
   updateFilter,
   removeFilter,
   addFilter,
+  // New props for machine and operator selection
+  availableMachines = [],
+  selectedMachines = [],
+  setSelectedMachines,
+  availableOperators = [],
+  selectedOperators = [],
+  setSelectedOperators,
 }) => {
   return (
     <Paper sx={{ p: 2, borderRadius: 2, mb: 2 }}>
@@ -98,25 +103,119 @@ const DashboardFilters = ({
           />
         </Stack>
 
-        {/* Quick Filters */}
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField
-            size="small"
-            label="Machine Filter"
-            placeholder="Filter by machine..."
-            value={mcFilter}
-            onChange={(e) => setMcFilter(e.target.value)}
-            fullWidth
-          />
+        {/* Machine and Operator Selection Filters */}
+        <Stack spacing={2}>
+          {/* Machine Filter */}
+          {availableMachines.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                🔧 Machine Filter
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={availableMachines}
+                value={selectedMachines}
+                onChange={(event, newValue) => {
+                  setSelectedMachines(newValue);
+                }}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={option}
+                      size="small"
+                      {...getTagProps({ index })}
+                      key={option}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select machines to filter"
+                    placeholder={selectedMachines.length === 0 ? "Choose machines..." : ""}
+                    helperText={`${selectedMachines.length} of ${availableMachines.length} machines selected. Leave empty to show all machines.`}
+                  />
+                )}
+              />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSelectedMachines([])}
+                  disabled={selectedMachines.length === 0}
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSelectedMachines([...availableMachines])}
+                  disabled={selectedMachines.length === availableMachines.length}
+                >
+                  Select All
+                </Button>
+              </Box>
+            </Box>
+          )}
 
-          <TextField
-            size="small"
-            label="Operator Filter"
-            placeholder="Filter by operator..."
-            value={opFilter}
-            onChange={(e) => setOpFilter(e.target.value)}
-            fullWidth
-          />
+          {/* Operator Filter */}
+          {availableOperators.length > 0 && reportType === 'operator' && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                👤 Operator Filter
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={availableOperators}
+                value={selectedOperators}
+                onChange={(event, newValue) => {
+                  setSelectedOperators(newValue);
+                }}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={option}
+                      size="small"
+                      {...getTagProps({ index })}
+                      key={option}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select operators to filter"
+                    placeholder={selectedOperators.length === 0 ? "Choose operators..." : ""}
+                    helperText={`${selectedOperators.length} of ${availableOperators.length} operators selected. Leave empty to show all operators.`}
+                  />
+                )}
+              />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSelectedOperators([])}
+                  disabled={selectedOperators.length === 0}
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSelectedOperators([...availableOperators])}
+                  disabled={selectedOperators.length === availableOperators.length}
+                >
+                  Select All
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {/* Note: Text search filters removed in favor of dropdown selectors */}
         </Stack>
 
         {/* Action Buttons */}

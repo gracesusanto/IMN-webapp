@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
   Paper,
   Table,
@@ -18,8 +19,13 @@ import {
   Tooltip,
   Drawer,
   Divider,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
-import { ExpandMore, ExpandLess, Help, Info, Analytics } from '@mui/icons-material';
+import { ExpandMore, ExpandLess, Help, Info, Analytics, History } from '@mui/icons-material';
+import { API_CONFIG } from '../constants/config';
 
 const ReportTable = ({
   data,
@@ -38,6 +44,100 @@ const ReportTable = ({
   const [helpExpanded, setHelpExpanded] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [rowHistory, setRowHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Helper functions for consistent KPI calculations
+  const getPctNumber = (value) => {
+    if (value == null) return 0;
+    if (typeof value === 'number') return value;
+    const parsed = parseFloat(String(value).replace('%', ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const toMinutesFromHHMM = (value) => {
+    if (!value || typeof value !== 'string' || !value.includes(':')) return 0;
+    const [hh, mm] = value.split(':').map((v) => parseInt(v, 10));
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0;
+    return hh * 60 + mm;
+  };
+
+  const formatPct = (num) => `${Number(num || 0).toFixed(1)}%`;
+
+  const formatPieces = (num) => Number(num || 0).toFixed(1);
+
+  const getDisplayRow = (selectedRow, rowHistory) => {
+    if (rowHistory?.summary && Object.keys(rowHistory.summary).length > 0) {
+      return rowHistory.summary;
+    }
+    return selectedRow;
+  };
+
+  const getDrawerMetrics = (selectedRow, rowHistory) => {
+    const displayRow = getDisplayRow(selectedRow, rowHistory);
+
+    const planMinutes =
+      rowHistory?.calculation?.plan_minutes ??
+      displayRow?.plan_minutes ??
+      toMinutesFromHHMM(displayRow?.plan);
+
+    const utilityMinutes =
+      rowHistory?.calculation?.utility_minutes ??
+      displayRow?.utility_minutes ??
+      toMinutesFromHHMM(displayRow?.rt);
+
+    const downtimeMinutes =
+      rowHistory?.calculation?.downtime_minutes ??
+      displayRow?.downtime_minutes ??
+      Math.max(0, planMinutes - utilityMinutes);
+
+    const output = Number(displayRow?.output || 0);
+    const reject = Number(displayRow?.reject || 0);
+    const rework = Number(displayRow?.rework || 0);
+    const totalOutput = output + reject + rework;
+    const targetPerHour = Number(
+      rowHistory?.calculation?.target_per_jam ??
+      displayRow?.target_per_jam ??
+      0
+    );
+
+    const runtimeHours = utilityMinutes / 60;
+    const expectedOutput = runtimeHours * targetPerHour;
+
+    const otrNum =
+      rowHistory?.calculation?.otr_num ??
+      (planMinutes > 0 ? (utilityMinutes / planMinutes) * 100 : 0);
+
+    const perNum =
+      rowHistory?.calculation?.per_num ??
+      (expectedOutput > 0 ? (output / expectedOutput) * 100 : 0);
+
+    const qrNum =
+      rowHistory?.calculation?.qr_num ??
+      (totalOutput > 0 ? (output / totalOutput) * 100 : 0);
+
+    const oeeNum =
+      rowHistory?.calculation?.oee_num ??
+      ((otrNum * perNum * qrNum) / 10000);
+
+    return {
+      displayRow,
+      planMinutes,
+      utilityMinutes,
+      downtimeMinutes,
+      output,
+      reject,
+      rework,
+      totalOutput,
+      targetPerHour,
+      runtimeHours,
+      expectedOutput,
+      otrNum,
+      perNum,
+      qrNum,
+      oeeNum,
+    };
+  };
   // Get column configuration based on mode and report type
   const getColumns = () => {
     if (viewMode === 'compact') {
@@ -243,9 +343,51 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
     return maxMinutes > 0 ? `${maxCode} (${Math.round(maxMinutes)} min)` : 'None';
   };
 
-  const handleRowClick = (row) => {
+  const handleRowClick = async (row) => {
+    console.log('Clicked row:', row);
+    console.log('Clicked history_key:', row.history_key);
     setSelectedRow(row);
+    setRowHistory(null);
     setDrawerOpen(true);
+
+    // Check if row has history_key for the new API
+    if (row.history_key) {
+      setHistoryLoading(true);
+      try {
+        const response = await axios.post(
+          `${API_CONFIG.BASE_URL}/api/reports/dashboard/row-history`,
+          row.history_key
+        );
+        console.log('Row history response:', response.data);
+        setRowHistory(response.data);
+      } catch (error) {
+        console.error('Failed to fetch row history:', error);
+        // Check if it's a specific row history reconstruction failure
+        if (error.response?.data?.found === false || error.response?.data?.error) {
+          setRowHistory({
+            error: error.response.data.error || 'Row history reconstruction failed',
+            found: false
+          });
+        } else {
+          setRowHistory({
+            error: 'Failed to load timeline data. Please try again.',
+            found: false
+          });
+        }
+      } finally {
+        setHistoryLoading(false);
+      }
+    } else {
+      // No history_key - cannot reconstruct timeline/calculation details
+      console.log('Row clicked without history_key:', row);
+      setRowHistory({
+        error: 'This row does not include history_key, so timeline/calculation details cannot be reconstructed.',
+        found: false,
+        summary: row,  // Still show the basic row info
+        timeline: [],
+        calculation: {}
+      });
+    }
   };
 
   const getStatusChip = (status) => {
@@ -552,7 +694,7 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
       {/* Header and Controls */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">
-          📋 {reportType === 'mesin' ? 'Machine' : 'Operator'} Report Table
+          📋 {reportType === 'mesin' ? 'Machine' : 'Operator'} Dashboard Table
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
@@ -701,121 +843,213 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
         showLastButton
       />
 
-      {/* Row Details Drawer */}
+      {/* Row History Drawer */}
       <Drawer
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: 500, p: 3 } }}
+        PaperProps={{ sx: { width: 600, p: 3 } }}
       >
-        {selectedRow && (
+        {selectedRow && (() => {
+          const {
+            displayRow,
+            planMinutes,
+            utilityMinutes,
+            downtimeMinutes,
+            output,
+            reject,
+            rework,
+            totalOutput,
+            targetPerHour,
+            runtimeHours,
+            expectedOutput,
+            otrNum,
+            perNum,
+            qrNum,
+            oeeNum,
+          } = getDrawerMetrics(selectedRow, rowHistory);
+
+          return (
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Analytics sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">Row Calculation Details</Typography>
+              <History sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6">Row History & Timeline</Typography>
             </Box>
 
             {/* Row Identity */}
             <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
               <Typography variant="subtitle2" gutterBottom>Row Summary</Typography>
               <Typography variant="body2">
-                <strong>Machine:</strong> {selectedRow.mc_no}<br/>
+                <strong>Machine:</strong> {displayRow.mc_no}<br />
                 {reportType === 'operator' && (
                   <>
-                    <strong>Operator:</strong> {selectedRow.operator}<br/>
+                    <strong>Operator:</strong> {displayRow.operator}<br />
                   </>
                 )}
-                <strong>Part:</strong> {selectedRow.part_no_name}<br/>
-                <strong>Process:</strong> {selectedRow.proses}<br/>
-                <strong>Date/Shift:</strong> {selectedRow.tanggal} Shift {selectedRow.shift}<br/>
-                <strong>Status:</strong> {selectedRow.status}
+                <strong>Part:</strong> {displayRow.part_no_name}<br />
+                <strong>Process:</strong> {displayRow.proses}<br />
+                <strong>Date/Shift:</strong> {displayRow.tanggal} Shift {displayRow.shift}<br />
+                <strong>Status:</strong> {displayRow.status}
               </Typography>
             </Paper>
 
-            {/* KPI Calculations */}
-            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-              📊 How this row was calculated
-            </Typography>
+            {/* Loading State */}
+            {historyLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading timeline...</Typography>
+              </Box>
+            )}
 
-            {/* OTR Breakdown */}
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                OTR (Operation Time Rate): {selectedRow.otr}
-              </Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                Formula: Runtime ÷ Plan Time<br/>
-                Calculation: {selectedRow.utility_minutes} min ÷ {selectedRow.plan_minutes} min<br/>
-                Result: {selectedRow.otr_num}% = {selectedRow.otr}
-              </Typography>
-            </Paper>
+            {/* Row History Content */}
+            {rowHistory && !historyLoading && (
+              <>
+                {/* Error State */}
+                {rowHistory.error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {rowHistory.error}
+                  </Alert>
+                )}
 
-            {/* PER Breakdown */}
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                PER (Performance Rate): {selectedRow.per}
-              </Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                Formula: Output ÷ (Runtime Hours × Std/Jam)<br/>
-                Good Output: {selectedRow.output}<br/>
-                Runtime: {(selectedRow.utility_minutes / 60).toFixed(1)} hours<br/>
-                Std/Jam: {selectedRow.target_per_jam}<br/>
-                Expected Output: {Math.round((selectedRow.utility_minutes / 60) * selectedRow.target_per_jam)} pieces<br/>
-                Result: {selectedRow.per_num}% = {selectedRow.per}<br/>
-                {selectedRow.per_num > 100 && <span style={{color: 'green'}}>✓ Faster than standard target!</span>}
-              </Typography>
-            </Paper>
+                {/* Timeline */}
+                {rowHistory.timeline && rowHistory.timeline.length > 0 && (
+                  <>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      🕒 Activity Timeline ({rowHistory.timeline.length} activities)
+                    </Typography>
 
-            {/* QR Breakdown */}
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                QR (Quality Rate): {selectedRow.qr}
-              </Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                Formula: Good Output ÷ Total Output<br/>
-                Calculation: {selectedRow.output} ÷ {selectedRow.output + selectedRow.reject + (selectedRow.rework || 0)}<br/>
-                Result: {selectedRow.qr_num}% = {selectedRow.qr}
-              </Typography>
-            </Paper>
+                    <Paper sx={{ maxHeight: 300, overflow: 'auto', mb: 3 }}>
+                      <List dense>
+                        {rowHistory.timeline.map((activity, index) => (
+                          <ListItem key={index} divider>
+                            <ListItemText
+                              primary={
+                                <Box>
+                                  <Typography variant="body2" component="span" sx={{ fontWeight: 500 }}>
+                                    {activity.desc}
+                                  </Typography>
+                                  <Chip
+                                    label={`${Math.round(activity.duration_minutes)} min`}
+                                    size="small"
+                                    sx={{ ml: 1 }}
+                                  />
+                                </Box>
+                              }
+                              secondary={
+                                <Box sx={{ mt: 0.5 }}>
+                                  <Typography variant="caption" display="block">
+                                    {new Date(activity.start_time).toLocaleTimeString('id-ID')} - {new Date(activity.stop_time).toLocaleTimeString('id-ID')}
+                                  </Typography>
+                                  {(activity.qty > 0 || activity.reject > 0 || activity.rework > 0) && (
+                                    <Typography variant="caption" display="block">
+                                      Output: {activity.qty} | Reject: {activity.reject} | Rework: {activity.rework}
+                                    </Typography>
+                                  )}
+                                  {activity.keterangan && (
+                                    <Typography variant="caption" display="block" sx={{ fontStyle: 'italic' }}>
+                                      {activity.keterangan}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  </>
+                )}
 
-            {/* OEE Breakdown */}
-            <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                OEE (Overall Equipment Effectiveness): {selectedRow.oee}
-              </Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                Formula: OTR × PER × QR<br/>
-                Calculation: {selectedRow.otr_num}% × {selectedRow.per_num}% × {selectedRow.qr_num}%<br/>
-                Result: {selectedRow.oee_num}% = {selectedRow.oee}
-              </Typography>
-            </Paper>
+                {/* KPI Calculations - corrected with consistent source */}
+                {rowHistory && !historyLoading && !rowHistory.error && rowHistory.calculation && Object.keys(rowHistory.calculation).length > 0 && (
+                  <>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      📊 KPI Calculation Breakdown
+                    </Typography>
 
-            <Divider sx={{ my: 2 }} />
+                    <Paper sx={{ p: 2, mb: 2 }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        OTR (Operation Time Rate): {displayRow.otr || formatPct(otrNum)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
+                        {`Formula: utility_minutes / plan_minutes
+Calculation: ${utilityMinutes.toFixed(1)} min ÷ ${planMinutes.toFixed(1)} min
+Result: ${formatPct(otrNum)} = ${displayRow.otr || formatPct(otrNum)}`}
+                      </Typography>
+                    </Paper>
 
-            {/* Main Downtime Contributor */}
-            <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                🔧 Main Downtime Contributor
-              </Typography>
-              <Typography variant="body2">
-                <strong>{getMainDowntimeContributor(selectedRow)}</strong>
-              </Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
-                Total Downtime: {selectedRow.total_dt} ({selectedRow.downtime_minutes} min)
-              </Typography>
-            </Paper>
+                    <Paper sx={{ p: 2, mb: 2 }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        PER (Performance Rate): {displayRow.per || formatPct(perNum)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
+                        {`Formula: output / (utility_hours * target_per_jam)
+Good Output: ${output}
+Runtime: ${runtimeHours.toFixed(2)} hours
+Std/Jam: ${targetPerHour}
+Expected Output: ${formatPieces(expectedOutput)} pieces
+Result: ${formatPct(perNum)} = ${displayRow.per || formatPct(perNum)}`}
+                      </Typography>
+                      {perNum > 100 && (
+                        <Typography variant="caption" sx={{ color: 'success.main', display: 'block', mt: 1 }}>
+                          ✓ Faster than standard target
+                        </Typography>
+                      )}
+                    </Paper>
 
-            {/* Performance Summary */}
-            <Paper sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
-              <Typography variant="subtitle2" gutterBottom>Performance Summary</Typography>
-              <Typography variant="body2">
-                • <strong>Target:</strong> {selectedRow.target_per_jam} pcs/hr<br/>
-                • <strong>Actual Output:</strong> {selectedRow.output} good + {selectedRow.reject} reject = {selectedRow.output + selectedRow.reject} total<br/>
-                • <strong>Time Usage:</strong> {selectedRow.rt} productive out of {selectedRow.plan} planned<br/>
-                • <strong>Overall Result:</strong> {selectedRow.oee} effectiveness
-              </Typography>
-            </Paper>
+                    <Paper sx={{ p: 2, mb: 2 }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        QR (Quality Rate): {displayRow.qr || formatPct(qrNum)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
+                        {`Formula: output / (output + reject + rework)
+Calculation: ${output} ÷ ${totalOutput}
+Result: ${formatPct(qrNum)} = ${displayRow.qr || formatPct(qrNum)}`}
+                      </Typography>
+                    </Paper>
+
+                    <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        OEE (Overall Equipment Effectiveness): {displayRow.oee || formatPct(oeeNum)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
+                        {`Formula: otr * per * qr
+Calculation: ${formatPct(otrNum)} × ${formatPct(perNum)} × ${formatPct(qrNum)}
+Result: ${formatPct(oeeNum)} = ${displayRow.oee || formatPct(oeeNum)}`}
+                      </Typography>
+                    </Paper>
+
+                    <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        🔧 Time Breakdown
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Plan Time:</strong> {planMinutes.toFixed(1)} min<br />
+                        <strong>Utility Time:</strong> {utilityMinutes.toFixed(1)} min<br />
+                        <strong>Downtime:</strong> {downtimeMinutes.toFixed(1)} min<br />
+                        <strong>Main Downtime:</strong> {getMainDowntimeContributor(displayRow)}
+                      </Typography>
+                    </Paper>
+                  </>
+                )}
+
+                {/* Empty State Messages */}
+                {rowHistory && !rowHistory.timeline?.length && !rowHistory.error && (!rowHistory.calculation || Object.keys(rowHistory.calculation).length === 0) && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    No detailed history data available for this row. This may happen if the row data was not found during reconstruction.
+                  </Alert>
+                )}
+
+                {rowHistory && !rowHistory.timeline?.length && !rowHistory.error && rowHistory.calculation && Object.keys(rowHistory.calculation).length > 0 && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    No detailed timeline data available, but KPI calculations are shown above.
+                  </Alert>
+                )}
+              </>
+            )}
           </Box>
-        )}
+          );
+        })()}
       </Drawer>
     </Box>
   );
