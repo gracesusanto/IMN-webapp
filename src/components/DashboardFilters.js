@@ -37,6 +37,11 @@ const DashboardFilters = ({
   updateFilter,
   removeFilter,
   addFilter,
+  // Sort props
+  sortBy,
+  setSortBy,
+  sortDirection,
+  setSortDirection,
   // New props for machine and operator selection
   availableMachines = [],
   selectedMachines = [],
@@ -258,58 +263,201 @@ const DashboardFilters = ({
             <Stack spacing={2}>
               <Typography variant="h6">Advanced Filters</Typography>
 
-              {filters.map((filter) => (
-                <Stack
-                  key={filter.id}
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={1}
-                  alignItems={{ md: "center" }}
-                >
-                  <FormControl size="small" sx={{ minWidth: 200 }}>
-                    <InputLabel>Field</InputLabel>
-                    <Select
-                      label="Field"
-                      value={filter.field}
-                      onChange={(e) => {
-                        const nextField = activeFilterFields.find((f) => f.field === e.target.value);
-                        updateFilter(filter.id, {
-                          field: nextField.field,
-                          type: nextField.type,
-                          operator: "contains",
-                          value: "",
-                        });
-                      }}
-                    >
-                      {activeFilterFields.map((f) => (
-                        <MenuItem key={f.field} value={f.field}>
-                          {f.field}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+{filters.map((filter) => {
+                const fieldConfig = activeFilterFields.find((f) => f.field === filter.field);
+                const isNumeric = fieldConfig?.type === 'number' || fieldConfig?.type === 'integer';
+                const isString = fieldConfig?.type === 'string';
 
-                  <TextField
-                    size="small"
-                    label="Value"
-                    value={filter.value}
-                    onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-                    sx={{ minWidth: 200 }}
-                  />
+                // Define available operators based on field type
+                const getAvailableOperators = () => {
+                  if (isNumeric) {
+                    return [
+                      { value: 'eq', label: '= (equals)', symbol: '=' },
+                      { value: 'ne', label: '≠ (not equals)', symbol: '≠' },
+                      { value: 'gt', label: '> (greater than)', symbol: '>' },
+                      { value: 'gte', label: '≥ (greater than or equal)', symbol: '≥' },
+                      { value: 'lt', label: '< (less than)', symbol: '<' },
+                      { value: 'lte', label: '≤ (less than or equal)', symbol: '≤' },
+                      { value: 'in', label: '∈ (in list)', symbol: '∈' }
+                    ];
+                  } else if (isString) {
+                    return [
+                      { value: 'contains', label: 'contains', symbol: '∋' },
+                      { value: 'not_contains', label: 'does not contain', symbol: '∌' },
+                      { value: 'eq', label: 'equals exactly', symbol: '=' },
+                      { value: 'ne', label: 'not equals', symbol: '≠' },
+                      { value: 'starts_with', label: 'starts with', symbol: '▶' },
+                      { value: 'ends_with', label: 'ends with', symbol: '◀' },
+                      { value: 'in', label: 'in list', symbol: '∈' }
+                    ];
+                  }
+                  return [{ value: 'contains', label: 'contains', symbol: '∋' }];
+                };
 
-                  <Button
-                    color="error"
-                    onClick={() => removeFilter(filter.id)}
+                const availableOperators = getAvailableOperators();
+                const isListOperator = filter.operator === 'in';
+
+                return (
+                  <Stack
+                    key={filter.id}
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={1}
+                    alignItems={{ md: "center" }}
                   >
-                    Remove
-                  </Button>
-                </Stack>
-              ))}
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                      <InputLabel>Field</InputLabel>
+                      <Select
+                        label="Field"
+                        value={filter.field}
+                        onChange={(e) => {
+                          const nextField = activeFilterFields.find((f) => f.field === e.target.value);
+                          const defaultOp = nextField.type === 'number' || nextField.type === 'integer' ? 'eq' : 'contains';
+                          updateFilter(filter.id, {
+                            field: nextField.field,
+                            type: nextField.type,
+                            operator: defaultOp,
+                            value: "",
+                          });
+                        }}
+                      >
+                        {activeFilterFields.map((f) => (
+                          <MenuItem key={f.field} value={f.field}>
+                            {f.field} <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
+                              ({f.type})
+                            </Typography>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 180 }}>
+                      <InputLabel>Operator</InputLabel>
+                      <Select
+                        label="Operator"
+                        value={filter.operator}
+                        onChange={(e) => updateFilter(filter.id, {
+                          operator: e.target.value,
+                          value: "" // Clear value when operator changes
+                        })}
+                      >
+                        {availableOperators.map((op) => (
+                          <MenuItem key={op.value} value={op.value}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold', minWidth: 20 }}>
+                                {op.symbol}
+                              </Typography>
+                              <Typography variant="body2">
+                                {op.label}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      size="small"
+                      label={isListOperator ? "Values (comma-separated)" : "Value"}
+                      value={filter.value}
+                      onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                      sx={{ minWidth: 200, flexGrow: 1 }}
+                      type={isNumeric && !isListOperator ? 'number' : 'text'}
+                      placeholder={
+                        isListOperator
+                          ? (isNumeric ? "e.g., 100,200,300" : "e.g., PROD1,PROD2,PROD3")
+                          : (isNumeric ? "e.g., 100" : "e.g., search text")
+                      }
+                      helperText={
+                        isListOperator
+                          ? "Enter comma-separated values"
+                          : fieldConfig?.type ? `Field type: ${fieldConfig.type}` : ""
+                      }
+                    />
+
+                    <Button
+                      color="error"
+                      onClick={() => removeFilter(filter.id)}
+                      variant="outlined"
+                      size="small"
+                    >
+                      Remove
+                    </Button>
+                  </Stack>
+                );
+              })}
 
               <Stack direction="row" spacing={1} justifyContent="flex-start">
                 <Button variant="outlined" onClick={addFilter}>
                   Add Filter
                 </Button>
               </Stack>
+
+              {/* Sort Section */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" gutterBottom>Sort By</Typography>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={2}
+                  alignItems={{ md: "center" }}
+                >
+                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Sort Field</InputLabel>
+                    <Select
+                      label="Sort Field"
+                      value={sortBy || ''}
+                      onChange={(e) => setSortBy(e.target.value)}
+                    >
+                      <MenuItem value="">
+                        <em>No sorting</em>
+                      </MenuItem>
+                      {activeFilterFields.map((f) => (
+                        <MenuItem key={f.field} value={f.field}>
+                          {f.field} <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
+                            ({f.type})
+                          </Typography>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {sortBy && (
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Direction</InputLabel>
+                      <Select
+                        label="Direction"
+                        value={sortDirection || 'asc'}
+                        onChange={(e) => setSortDirection(e.target.value)}
+                      >
+                        <MenuItem value="asc">
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>↑</Typography>
+                            <Typography>Ascending (A→Z, 1→9)</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="desc">
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>↓</Typography>
+                            <Typography>Descending (Z→A, 9→1)</Typography>
+                          </Box>
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+
+                  {sortBy && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        setSortBy('');
+                        setSortDirection('asc');
+                      }}
+                    >
+                      Clear Sort
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
             </Stack>
           </Paper>
         </Collapse>

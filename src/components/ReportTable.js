@@ -84,7 +84,7 @@ const ReportTable = ({
     const utilityMinutes =
       rowHistory?.calculation?.utility_minutes ??
       displayRow?.utility_minutes ??
-      toMinutesFromHHMM(displayRow?.rt);
+      toMinutesFromHHMM(displayRow?.utility);
 
     const downtimeMinutes =
       rowHistory?.calculation?.downtime_minutes ??
@@ -163,7 +163,7 @@ const ReportTable = ({
         { key: 'output', label: 'OUTPUT', width: 80 },
         { key: 'reject', label: 'REJECT', width: 80 },
         { key: 'plan', label: 'PLAN', width: 80 },
-        { key: 'rt', label: 'RT', width: 80 },
+        { key: 'utility', label: 'RT', width: 80 },
         { key: 'total_dt', label: 'TOTAL DT', width: 80 },
         { key: 'per', label: 'PER', width: 80 },
         { key: 'otr', label: 'OTR', width: 80 },
@@ -184,7 +184,7 @@ const ReportTable = ({
         { key: 'output', label: 'OUTPUT', width: 80 },
         { key: 'reject', label: 'REJECT', width: 80 },
         { key: 'plan', label: 'PLAN', width: 80 },
-        { key: 'rt', label: 'RT', width: 80 },
+        { key: 'utility', label: 'RT', width: 80 },
         { key: 'total_dt', label: 'TOTAL DT', width: 80 },
         { key: 'per', label: 'PER', width: 80 },
         { key: 'otr', label: 'OTR', width: 80 },
@@ -211,7 +211,7 @@ const ReportTable = ({
       { key: 'output', label: 'OUTPUT', width: 80 },
       { key: 'reject', label: 'REJECT', width: 80 },
       { key: 'plan', label: 'PLAN', width: 80 },
-      { key: 'rt', label: 'RT', width: 80 },
+      { key: 'utility', label: 'RT', width: 80 },
       { key: 'tp', label: 'TP', width: 80 },
       { key: 'ts', label: 'TS', width: 80 },
       { key: 'qc', label: 'QC', width: 80 },
@@ -253,7 +253,7 @@ const ReportTable = ({
       'output': 'Good output quantity in this row',
       'reject': 'Rejected quantity in this row',
       'plan': 'Counted planned production time for the row. Used as denominator for OTR.',
-      'rt': 'Running Time / Utility Time. Time spent actually running productively.',
+      'utility': 'Running Time / Utility Time (U). Time spent actually running productively.',
       'total_dt': 'Total Downtime within counted plan time. Formula: Plan − RT',
       'per': 'Performance Ratio = Output ÷ (RT × Std/Jam). Can exceed 100% when faster than target.',
       'otr': 'Operation Time Ratio / Availability = RT ÷ Plan. Low OTR = lost time/downtime.',
@@ -411,7 +411,7 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
     if (!value && value !== 0) return '-';
 
     // Time columns (hours:minutes format)
-    if (['plan', 'rt', 'tp', 'ts', 'qc', 'cm', 'no', 'np', 'nm', 'mp', 'bt', 'br', 'total_dt'].includes(column.key)) {
+    if (['plan', 'utility', 'tp', 'ts', 'qc', 'cm', 'no', 'np', 'nm', 'mp', 'bt', 'br', 'total_dt'].includes(column.key)) {
       return value;
     }
 
@@ -602,7 +602,7 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                 <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>Time</Typography>
                 <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                   • PLAN: counted planned time<br />
-                  • RT: running / utility time<br />
+                  • RT: running / utility time (U: Utility)<br />
                   • TOTAL DT: counted downtime
                 </Typography>
               </Box>
@@ -973,7 +973,9 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                       </Typography>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
                         {`Formula: utility_minutes / plan_minutes
-Calculation: ${utilityMinutes.toFixed(1)} min ÷ ${planMinutes.toFixed(1)} min
+Utility Time (U): ${utilityMinutes.toFixed(1)} min
+Plan Time: ${planMinutes.toFixed(1)} min
+Calculation: ${utilityMinutes.toFixed(1)} ÷ ${planMinutes.toFixed(1)}
 Result: ${formatPct(otrNum)} = ${displayRow.otr || formatPct(otrNum)}`}
                       </Typography>
                     </Paper>
@@ -985,9 +987,10 @@ Result: ${formatPct(otrNum)} = ${displayRow.otr || formatPct(otrNum)}`}
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', whiteSpace: 'pre-line' }}>
                         {`Formula: output / (utility_hours * target_per_jam)
 Good Output: ${output}
-Runtime: ${runtimeHours.toFixed(2)} hours
+Utility Time (U): ${utilityMinutes.toFixed(1)} min = ${runtimeHours.toFixed(2)} hours
 Std/Jam: ${targetPerHour}
 Expected Output: ${formatPieces(expectedOutput)} pieces
+Calculation: ${output} ÷ ${formatPieces(expectedOutput)}
 Result: ${formatPct(perNum)} = ${displayRow.per || formatPct(perNum)}`}
                       </Typography>
                       {perNum > 100 && (
@@ -1025,7 +1028,7 @@ Result: ${formatPct(oeeNum)} = ${displayRow.oee || formatPct(oeeNum)}`}
                       </Typography>
                       <Typography variant="body2">
                         <strong>Plan Time:</strong> {planMinutes.toFixed(1)} min<br />
-                        <strong>Utility Time:</strong> {utilityMinutes.toFixed(1)} min<br />
+                        <strong>Utility Time (U):</strong> {utilityMinutes.toFixed(1)} min<br />
                         <strong>Downtime:</strong> {downtimeMinutes.toFixed(1)} min<br />
                         <strong>Main Downtime:</strong> {getMainDowntimeContributor(displayRow)}
                       </Typography>
