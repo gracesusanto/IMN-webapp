@@ -72,6 +72,18 @@ const ReportTable = ({
     return minutes.toFixed(1);
   };
 
+  const formatMinutesAsHoursMins = (value) => {
+    const totalMinutes = Math.round(Number(value || 0));
+    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return '0m';
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours <= 0) return `${minutes}m`;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h ${minutes}m`;
+  };
+
   const getDisplayRow = (selectedRow, rowHistory) => {
     if (rowHistory?.summary && Object.keys(rowHistory.summary).length > 0) {
       return rowHistory.summary;
@@ -946,11 +958,17 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                                   <Typography variant="caption" display="block">
                                     {new Date(activity.start_time).toLocaleTimeString('id-ID')} - {new Date(activity.stop_time).toLocaleTimeString('id-ID')}
                                   </Typography>
+
+                                  <Typography variant="caption" display="block">
+                                    Operator: {activity.operator || '-'}
+                                  </Typography>
+
                                   {(activity.qty > 0 || activity.reject > 0 || activity.rework > 0) && (
                                     <Typography variant="caption" display="block">
                                       Output: {activity.qty} | Reject: {activity.reject} | Rework: {activity.rework}
                                     </Typography>
                                   )}
+
                                   {activity.keterangan && (
                                     <Typography variant="caption" display="block" sx={{ fontStyle: 'italic' }}>
                                       {activity.keterangan}
@@ -984,12 +1002,12 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                             ['QC', session.qc_minutes],
                             ['CM', session.cm_minutes],
                             ['NO', session.no_minutes],
-                            ['NP', session.np_minutes],
                             ['NM', session.nm_minutes],
                             ['MP', session.mp_minutes],
+                            ['TL', session.tl_minutes],
                             ['BT', session.bt_minutes],
                             ['BR', session.br_minutes],
-                            ['TL', session.tl_minutes],
+                            ['NP', session.np_minutes],
                           ].filter(([, minutes]) => Number(minutes || 0) > 0);
 
                           return (
@@ -1002,13 +1020,13 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                                     </Typography>
                                     <Chip
                                       size="small"
-                                      label={`${session.sessions || 0} session${(session.sessions || 0) > 1 ? 's' : ''}`}
+                                      label={`${session.activities_count || session.sessions || 0} activities`}
                                     />
                                     {session.main_loss_code && (
                                       <Chip
                                         size="small"
                                         color="warning"
-                                        label={`Main loss: ${session.main_loss_code} (${formatMinutes(session.main_loss_minutes)} min)`}
+                                        label={`Main loss: ${session.main_loss_code} (${formatMinutesAsHoursMins(session.main_loss_minutes)})`}
                                       />
                                     )}
                                   </Box>
@@ -1016,10 +1034,10 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                                 secondary={
                                   <Box sx={{ mt: 0.75 }}>
                                     <Typography variant="caption" display="block">
-                                      Total time: {formatMinutes(session.total_minutes)} min
+                                      Total time: {formatMinutesAsHoursMins(session.total_minutes)}
                                     </Typography>
                                     <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                                      Runtime: {formatMinutes(session.runtime_minutes)} min
+                                      Runtime: {formatMinutesAsHoursMins(session.runtime_minutes)}
                                     </Typography>
 
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -1029,7 +1047,7 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                                             key={code}
                                             size="small"
                                             variant="outlined"
-                                            label={`${code} ${formatMinutes(minutes)} min`}
+                                            label={`${code} ${formatMinutesAsHoursMins(minutes)}`}
                                           />
                                         ))
                                       ) : (
