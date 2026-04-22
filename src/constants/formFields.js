@@ -157,7 +157,7 @@ export const CSV_FORMATS = {
   mesin: "name, tonase",
 };
 
-// Report fields
+// Report page filter fields - using raw dataframe column names
 export const REPORT_FILTER_FIELDS = {
   mesin: [
     { field: "MC", type: "string" },
@@ -246,6 +246,86 @@ export const REPORT_FILTER_FIELDS = {
     { field: "Rework Ratio", type: "number" },
     { field: "StartTime", type: "date" },
     { field: "StopTime", type: "date" },
+  ],
+};
+
+// Dashboard filter fields - using frontend column names and proper types
+export const DASHBOARD_FILTER_FIELDS = {
+  mesin: [
+    { field: 'mc_no', label: 'MC', type: 'string' },
+    { field: 'part_no', label: 'Part No', type: 'string' },
+    { field: 'part_name', label: 'Part Name', type: 'string' },
+    { field: 'proses', label: 'Proses', type: 'string' },
+    { field: 'catatan', label: 'Catatan', type: 'string' },
+
+    { field: 'tanggal', label: 'Tanggal', type: 'date' },
+    { field: 'shift', label: 'Shift', type: 'number' },
+
+    { field: 'target_per_jam', label: 'Std/Jam', type: 'number' },
+    { field: 'target_qty', label: 'Target Qty', type: 'number' },
+    { field: 'output', label: 'Output', type: 'number' },
+    { field: 'reject', label: 'Reject', type: 'number' },
+    { field: 'rework', label: 'Rework', type: 'number' },
+
+    // time fields shown as HH:MM in table, but filtered as numeric minutes
+    { field: 'plan', label: 'Plan', type: 'number', inputKind: 'time_minutes' },
+    { field: 'utility', label: 'Utility', type: 'number', inputKind: 'time_minutes' },
+    { field: 'total_dt', label: 'Total DT', type: 'number', inputKind: 'time_minutes' },
+    { field: 'tp', label: 'TP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'ts', label: 'TS', type: 'number', inputKind: 'time_minutes' },
+    { field: 'qc', label: 'QC', type: 'number', inputKind: 'time_minutes' },
+    { field: 'cm', label: 'CM', type: 'number', inputKind: 'time_minutes' },
+    { field: 'no', label: 'NO', type: 'number', inputKind: 'time_minutes' },
+    { field: 'np', label: 'NP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'nm', label: 'NM', type: 'number', inputKind: 'time_minutes' },
+    { field: 'mp', label: 'MP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'bt', label: 'BT', type: 'number', inputKind: 'time_minutes' },
+    { field: 'br', label: 'BR', type: 'number', inputKind: 'time_minutes' },
+    { field: 'tl', label: 'TL', type: 'number', inputKind: 'time_minutes' },
+
+    // KPI fields shown as %, but filtered as numeric percent
+    { field: 'per', label: 'PER', type: 'number', inputKind: 'percent' },
+    { field: 'otr', label: 'OTR', type: 'number', inputKind: 'percent' },
+    { field: 'qr', label: 'QR', type: 'number', inputKind: 'percent' },
+    { field: 'oee', label: 'OEE', type: 'number', inputKind: 'percent' },
+  ],
+
+  operator: [
+    { field: 'operator', label: 'Operator', type: 'string' },
+    { field: 'mc_no', label: 'MC', type: 'string' },
+    { field: 'part_no', label: 'Part No', type: 'string' },
+    { field: 'part_name', label: 'Part Name', type: 'string' },
+    { field: 'proses', label: 'Proses', type: 'string' },
+    { field: 'catatan', label: 'Catatan', type: 'string' },
+
+    { field: 'tanggal', label: 'Tanggal', type: 'date' },
+    { field: 'shift', label: 'Shift', type: 'number' },
+
+    { field: 'target_per_jam', label: 'Std/Jam', type: 'number' },
+    { field: 'target_qty', label: 'Target Qty', type: 'number' },
+    { field: 'output', label: 'Output', type: 'number' },
+    { field: 'reject', label: 'Reject', type: 'number' },
+    { field: 'rework', label: 'Rework', type: 'number' },
+
+    { field: 'plan', label: 'Plan', type: 'number', inputKind: 'time_minutes' },
+    { field: 'utility', label: 'Utility', type: 'number', inputKind: 'time_minutes' },
+    { field: 'total_dt', label: 'Total DT', type: 'number', inputKind: 'time_minutes' },
+    { field: 'tp', label: 'TP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'ts', label: 'TS', type: 'number', inputKind: 'time_minutes' },
+    { field: 'qc', label: 'QC', type: 'number', inputKind: 'time_minutes' },
+    { field: 'cm', label: 'CM', type: 'number', inputKind: 'time_minutes' },
+    { field: 'no', label: 'NO', type: 'number', inputKind: 'time_minutes' },
+    { field: 'np', label: 'NP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'nm', label: 'NM', type: 'number', inputKind: 'time_minutes' },
+    { field: 'mp', label: 'MP', type: 'number', inputKind: 'time_minutes' },
+    { field: 'bt', label: 'BT', type: 'number', inputKind: 'time_minutes' },
+    { field: 'br', label: 'BR', type: 'number', inputKind: 'time_minutes' },
+    { field: 'tl', label: 'TL', type: 'number', inputKind: 'time_minutes' },
+
+    { field: 'per', label: 'PER', type: 'number', inputKind: 'percent' },
+    { field: 'otr', label: 'OTR', type: 'number', inputKind: 'percent' },
+    { field: 'qr', label: 'QR', type: 'number', inputKind: 'percent' },
+    { field: 'oee', label: 'OEE', type: 'number', inputKind: 'percent' },
   ],
 };
 

@@ -37,12 +37,10 @@ const DashboardFilters = ({
   updateFilter,
   removeFilter,
   addFilter,
-  // Sort props
   sortBy,
   setSortBy,
   sortDirection,
   setSortDirection,
-  // New props for machine and operator selection
   availableMachines = [],
   selectedMachines = [],
   setSelectedMachines,
@@ -50,11 +48,131 @@ const DashboardFilters = ({
   selectedOperators = [],
   setSelectedOperators,
 }) => {
+  const getFieldConfig = (fieldName) =>
+    activeFilterFields.find((f) => f.field === fieldName);
+
+  const getDisplayType = (fieldConfig) => {
+    if (!fieldConfig) return 'string';
+    if (fieldConfig.inputKind === 'time_minutes') return 'minutes';
+    if (fieldConfig.inputKind === 'percent') return 'percent';
+    return fieldConfig.type;
+  };
+
+  const getAvailableOperators = (fieldConfig) => {
+    if (!fieldConfig) {
+      return [{ value: 'contains', label: 'contains' }];
+    }
+
+    const isTime = fieldConfig.inputKind === 'time_minutes';
+    const isPercentage = fieldConfig.inputKind === 'percent';
+    const isNumeric =
+      fieldConfig.type === 'number' || fieldConfig.type === 'integer';
+    const isString = fieldConfig.type === 'string';
+    const isDate = fieldConfig.type === 'date';
+
+    if (isTime || isPercentage || isNumeric) {
+      return [
+        { value: 'eq', label: '=' },
+        { value: 'ne', label: '!=' },
+        { value: 'gt', label: '>' },
+        { value: 'gte', label: '>=' },
+        { value: 'lt', label: '<' },
+        { value: 'lte', label: '<=' },
+        { value: 'in', label: 'in' },
+      ];
+    }
+
+    if (isDate) {
+      return [
+        { value: 'eq', label: '=' },
+        { value: 'before', label: '<' },
+        { value: 'on_or_before', label: '<=' },
+        { value: 'after', label: '>' },
+        { value: 'on_or_after', label: '>=' },
+        { value: 'in', label: 'in' },
+      ];
+    }
+
+    if (isString) {
+      return [
+        { value: 'contains', label: 'contains' },
+        { value: 'not_contains', label: 'not contains' },
+        { value: 'eq', label: '=' },
+        { value: 'ne', label: '!=' },
+        { value: 'starts_with', label: 'starts with' },
+        { value: 'ends_with', label: 'ends with' },
+        { value: 'in', label: 'in' },
+      ];
+    }
+
+    return [{ value: 'contains', label: 'contains' }];
+  };
+
+  const getDefaultOperator = (fieldConfig) => {
+    if (!fieldConfig) return 'contains';
+    if (
+      fieldConfig.type === 'number' ||
+      fieldConfig.type === 'integer' ||
+      fieldConfig.type === 'date' ||
+      fieldConfig.inputKind === 'time_minutes' ||
+      fieldConfig.inputKind === 'percent'
+    ) {
+      return 'eq';
+    }
+    return 'contains';
+  };
+
+  const getValuePlaceholder = (fieldConfig, isListOperator) => {
+    if (!fieldConfig) return 'Value';
+
+    const isTime = fieldConfig.inputKind === 'time_minutes';
+    const isPercentage = fieldConfig.inputKind === 'percent';
+    const isNumeric =
+      fieldConfig.type === 'number' || fieldConfig.type === 'integer';
+    const isDate = fieldConfig.type === 'date';
+
+    if (isListOperator) {
+      if (isTime) return 'e.g. 01:30,90,02:15';
+      if (isPercentage) return 'e.g. 80,95,100';
+      if (isNumeric) return 'e.g. 100,200,300';
+      if (isDate) return 'e.g. 2026-04-20,2026-04-21';
+      return 'e.g. A,B,C';
+    }
+
+    if (isTime) return 'e.g. 01:30 or 90';
+    if (isPercentage) return 'e.g. 82.5';
+    if (isNumeric) return 'e.g. 100';
+    if (isDate) return 'yyyy-mm-dd';
+    return 'e.g. search text';
+  };
+
+  const getValueHelperText = (fieldConfig, isListOperator) => {
+    if (!fieldConfig) return '';
+
+    const isTime = fieldConfig.inputKind === 'time_minutes';
+    const isPercentage = fieldConfig.inputKind === 'percent';
+    const isNumeric =
+      fieldConfig.type === 'number' || fieldConfig.type === 'integer';
+    const isDate = fieldConfig.type === 'date';
+
+    if (isListOperator) {
+      if (isTime) return 'Comma-separated values. Use HH:MM or minutes.';
+      if (isPercentage) return 'Comma-separated numbers. Do not include %.';
+      if (isNumeric) return 'Comma-separated numbers.';
+      if (isDate) return 'Comma-separated dates in yyyy-mm-dd.';
+      return 'Comma-separated values.';
+    }
+
+    if (isTime) return 'Use HH:MM or minutes. Compared as total minutes.';
+    if (isPercentage) return 'Enter a number only, without %.';
+    if (isDate) return 'Enter date in yyyy-mm-dd.';
+    return `Field type: ${getDisplayType(fieldConfig)}`;
+  };
+
   return (
     <Paper sx={{ p: 2, borderRadius: 2, mb: 2 }}>
       <Stack spacing={2}>
-        {/* Main Filters */}
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={2}>
+        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
           <FormControl size="small" fullWidth>
             <InputLabel>Report Type</InputLabel>
             <Select
@@ -93,7 +211,7 @@ const DashboardFilters = ({
             label="Shift From"
             inputProps={{ min: 1, max: 3 }}
             value={shiftFrom}
-            onChange={(e) => setShiftFrom(parseInt(e.target.value || "1", 10))}
+            onChange={(e) => setShiftFrom(parseInt(e.target.value || '1', 10))}
             fullWidth
           />
 
@@ -103,17 +221,19 @@ const DashboardFilters = ({
             label="Shift To"
             inputProps={{ min: 1, max: 3 }}
             value={shiftTo}
-            onChange={(e) => setShiftTo(parseInt(e.target.value || "1", 10))}
+            onChange={(e) => setShiftTo(parseInt(e.target.value || '1', 10))}
             fullWidth
           />
         </Stack>
 
-        {/* Machine and Operator Selection Filters */}
         <Stack spacing={2}>
-          {/* Machine Filter */}
           {availableMachines.length > 0 && (
             <Box>
-              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+              <Typography
+                variant="subtitle2"
+                gutterBottom
+                sx={{ fontWeight: 600, color: 'primary.main' }}
+              >
                 🔧 Machine Filter
               </Typography>
               <Autocomplete
@@ -138,9 +258,11 @@ const DashboardFilters = ({
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Select machines to filter"
-                    placeholder={selectedMachines.length === 0 ? "Choose machines..." : ""}
-                    helperText={`${selectedMachines.length} of ${availableMachines.length} machines selected. Leave empty to show all machines.`}
+                    label="Select machines"
+                    placeholder={
+                      selectedMachines.length === 0 ? 'Choose machines...' : ''
+                    }
+                    helperText={`${selectedMachines.length} of ${availableMachines.length} selected. Leave empty for all machines.`}
                   />
                 )}
               />
@@ -165,10 +287,13 @@ const DashboardFilters = ({
             </Box>
           )}
 
-          {/* Operator Filter */}
           {availableOperators.length > 0 && reportType === 'operator' && (
             <Box>
-              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+              <Typography
+                variant="subtitle2"
+                gutterBottom
+                sx={{ fontWeight: 600, color: 'primary.main' }}
+              >
                 👤 Operator Filter
               </Typography>
               <Autocomplete
@@ -193,9 +318,11 @@ const DashboardFilters = ({
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Select operators to filter"
-                    placeholder={selectedOperators.length === 0 ? "Choose operators..." : ""}
-                    helperText={`${selectedOperators.length} of ${availableOperators.length} operators selected. Leave empty to show all operators.`}
+                    label="Select operators"
+                    placeholder={
+                      selectedOperators.length === 0 ? 'Choose operators...' : ''
+                    }
+                    helperText={`${selectedOperators.length} of ${availableOperators.length} selected. Leave empty for all operators.`}
                   />
                 )}
               />
@@ -219,18 +346,15 @@ const DashboardFilters = ({
               </Box>
             </Box>
           )}
-
-          {/* Note: Text search filters removed in favor of dropdown selectors */}
         </Stack>
 
-        {/* Action Buttons */}
         <Stack direction="row" spacing={1} justifyContent="space-between">
           <Button
             variant="outlined"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             disabled={isLoading}
           >
-            {showAdvancedFilters ? "Hide" : "Show"} Advanced Filters
+            {showAdvancedFilters ? 'Hide' : 'Show'} Advanced Filters
           </Button>
 
           <Stack direction="row" spacing={1}>
@@ -246,84 +370,50 @@ const DashboardFilters = ({
               onClick={onApplyFilters}
               disabled={isLoading}
               size="large"
-              sx={{
-                px: 4,
-                fontSize: '1.1rem',
-                fontWeight: 'bold'
-              }}
+              sx={{ px: 4, fontSize: '1.1rem', fontWeight: 'bold' }}
             >
               📊 Show Dashboard
             </Button>
           </Stack>
         </Stack>
 
-        {/* Advanced Filters */}
         <Collapse in={showAdvancedFilters}>
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
             <Stack spacing={2}>
               <Typography variant="h6">Advanced Filters</Typography>
 
-{filters.map((filter) => {
-                const fieldConfig = activeFilterFields.find((f) => f.field === filter.field);
-                const isNumeric = fieldConfig?.type === 'number' || fieldConfig?.type === 'integer';
-                const isString = fieldConfig?.type === 'string';
-
-                // Define available operators based on field type
-                const getAvailableOperators = () => {
-                  if (isNumeric) {
-                    return [
-                      { value: 'eq', label: '= (equals)', symbol: '=' },
-                      { value: 'ne', label: '≠ (not equals)', symbol: '≠' },
-                      { value: 'gt', label: '> (greater than)', symbol: '>' },
-                      { value: 'gte', label: '≥ (greater than or equal)', symbol: '≥' },
-                      { value: 'lt', label: '< (less than)', symbol: '<' },
-                      { value: 'lte', label: '≤ (less than or equal)', symbol: '≤' },
-                      { value: 'in', label: '∈ (in list)', symbol: '∈' }
-                    ];
-                  } else if (isString) {
-                    return [
-                      { value: 'contains', label: 'contains', symbol: '∋' },
-                      { value: 'not_contains', label: 'does not contain', symbol: '∌' },
-                      { value: 'eq', label: 'equals exactly', symbol: '=' },
-                      { value: 'ne', label: 'not equals', symbol: '≠' },
-                      { value: 'starts_with', label: 'starts with', symbol: '▶' },
-                      { value: 'ends_with', label: 'ends with', symbol: '◀' },
-                      { value: 'in', label: 'in list', symbol: '∈' }
-                    ];
-                  }
-                  return [{ value: 'contains', label: 'contains', symbol: '∋' }];
-                };
-
-                const availableOperators = getAvailableOperators();
+              {filters.map((filter) => {
+                const fieldConfig = getFieldConfig(filter.field);
                 const isListOperator = filter.operator === 'in';
+                const availableOps = getAvailableOperators(fieldConfig);
 
                 return (
                   <Stack
                     key={filter.id}
-                    direction={{ xs: "column", md: "row" }}
+                    direction={{ xs: 'column', md: 'row' }}
                     spacing={1}
-                    alignItems={{ md: "center" }}
+                    alignItems={{ md: 'center' }}
                   >
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
                       <InputLabel>Field</InputLabel>
                       <Select
                         label="Field"
                         value={filter.field}
                         onChange={(e) => {
-                          const nextField = activeFilterFields.find((f) => f.field === e.target.value);
-                          const defaultOp = nextField.type === 'number' || nextField.type === 'integer' ? 'eq' : 'contains';
+                          const nextField = getFieldConfig(e.target.value);
                           updateFilter(filter.id, {
                             field: nextField.field,
                             type: nextField.type,
-                            operator: defaultOp,
-                            value: "",
+                            operator: getDefaultOperator(nextField),
+                            value: '',
                           });
                         }}
                       >
                         {activeFilterFields.map((f) => (
                           <MenuItem key={f.field} value={f.field}>
-                            {f.field} <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
-                              ({f.type})
+                            {f.label || f.field}
+                            <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
+                              ({getDisplayType(f)})
                             </Typography>
                           </MenuItem>
                         ))}
@@ -331,25 +421,20 @@ const DashboardFilters = ({
                     </FormControl>
 
                     <FormControl size="small" sx={{ minWidth: 180 }}>
-                      <InputLabel>Operator</InputLabel>
+                      <InputLabel>Comparison</InputLabel>
                       <Select
-                        label="Operator"
+                        label="Comparison"
                         value={filter.operator}
-                        onChange={(e) => updateFilter(filter.id, {
-                          operator: e.target.value,
-                          value: "" // Clear value when operator changes
-                        })}
+                        onChange={(e) =>
+                          updateFilter(filter.id, {
+                            operator: e.target.value,
+                            value: '',
+                          })
+                        }
                       >
-                        {availableOperators.map((op) => (
+                        {availableOps.map((op) => (
                           <MenuItem key={op.value} value={op.value}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold', minWidth: 20 }}>
-                                {op.symbol}
-                              </Typography>
-                              <Typography variant="body2">
-                                {op.label}
-                              </Typography>
-                            </Box>
+                            {op.label}
                           </MenuItem>
                         ))}
                       </Select>
@@ -357,21 +442,15 @@ const DashboardFilters = ({
 
                     <TextField
                       size="small"
-                      label={isListOperator ? "Values (comma-separated)" : "Value"}
+                      label={isListOperator ? 'Values' : 'Value'}
                       value={filter.value}
-                      onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-                      sx={{ minWidth: 200, flexGrow: 1 }}
-                      type={isNumeric && !isListOperator ? 'number' : 'text'}
-                      placeholder={
-                        isListOperator
-                          ? (isNumeric ? "e.g., 100,200,300" : "e.g., PROD1,PROD2,PROD3")
-                          : (isNumeric ? "e.g., 100" : "e.g., search text")
+                      onChange={(e) =>
+                        updateFilter(filter.id, { value: e.target.value })
                       }
-                      helperText={
-                        isListOperator
-                          ? "Enter comma-separated values"
-                          : fieldConfig?.type ? `Field type: ${fieldConfig.type}` : ""
-                      }
+                      sx={{ minWidth: 220, flexGrow: 1 }}
+                      type="text"
+                      placeholder={getValuePlaceholder(fieldConfig, isListOperator)}
+                      helperText={getValueHelperText(fieldConfig, isListOperator)}
                     />
 
                     <Button
@@ -392,15 +471,16 @@ const DashboardFilters = ({
                 </Button>
               </Stack>
 
-              {/* Sort Section */}
               <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" gutterBottom>Sort By</Typography>
+                <Typography variant="h6" gutterBottom>
+                  Sort By
+                </Typography>
                 <Stack
-                  direction={{ xs: "column", md: "row" }}
+                  direction={{ xs: 'column', md: 'row' }}
                   spacing={2}
-                  alignItems={{ md: "center" }}
+                  alignItems={{ md: 'center' }}
                 >
-                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Sort Field</InputLabel>
                     <Select
                       label="Sort Field"
@@ -412,8 +492,9 @@ const DashboardFilters = ({
                       </MenuItem>
                       {activeFilterFields.map((f) => (
                         <MenuItem key={f.field} value={f.field}>
-                          {f.field} <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
-                            ({f.type})
+                          {f.label || f.field}
+                          <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>
+                            ({getDisplayType(f)})
                           </Typography>
                         </MenuItem>
                       ))}
@@ -421,25 +502,15 @@ const DashboardFilters = ({
                   </FormControl>
 
                   {sortBy && (
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
                       <InputLabel>Direction</InputLabel>
                       <Select
                         label="Direction"
                         value={sortDirection || 'asc'}
                         onChange={(e) => setSortDirection(e.target.value)}
                       >
-                        <MenuItem value="asc">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>↑</Typography>
-                            <Typography>Ascending (A→Z, 1→9)</Typography>
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="desc">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>↓</Typography>
-                            <Typography>Descending (Z→A, 9→1)</Typography>
-                          </Box>
-                        </MenuItem>
+                        <MenuItem value="asc">asc</MenuItem>
+                        <MenuItem value="desc">desc</MenuItem>
                       </Select>
                     </FormControl>
                   )}

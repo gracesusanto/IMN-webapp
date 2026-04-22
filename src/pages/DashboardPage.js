@@ -23,7 +23,7 @@ import OeeDashboardPanel from "../components/OeeDashboardPanel";
 
 import { API_CONFIG } from "../constants/config";
 import styles from "./ReportPage.module.css";
-import { REPORT_FILTER_FIELDS, REPORT_OPERATORS } from '../constants/formFields';
+import { DASHBOARD_FILTER_FIELDS, REPORT_OPERATORS } from '../constants/formFields';
 
 const getTodayDateJakarta = () => {
   const now = new Date();
@@ -103,7 +103,7 @@ export default function DashboardPage() {
   });
 
   const activeFilterFields = useMemo(
-    () => REPORT_FILTER_FIELDS[reportType] || [],
+    () => DASHBOARD_FILTER_FIELDS[reportType] || [],
     [reportType]
   );
 
