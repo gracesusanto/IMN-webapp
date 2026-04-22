@@ -102,6 +102,10 @@ export default function DashboardPage() {
     pageSize: 20,
   });
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   const activeFilterFields = useMemo(
     () => DASHBOARD_FILTER_FIELDS[reportType] || [],
     [reportType]
@@ -125,6 +129,8 @@ export default function DashboardPage() {
     setFilters([]);
     setSelectedMachines([]);
     setSelectedOperators([]);
+    setSortBy('');
+    setSortDirection('asc');
     setDetailPagination({ page: 0, pageSize: 20 });
   };
 
@@ -186,6 +192,10 @@ export default function DashboardPage() {
           page: page + 1, // Backend uses 1-based pagination
           page_size: pageSize,
         },
+        sort: sortBy ? {
+          field: sortBy,
+          direction: sortDirection || 'asc'
+        } : null,
       };
 
       // Dev logging for debugging filtering issues
@@ -237,6 +247,10 @@ export default function DashboardPage() {
         date_to: dateTo,
         shift_to: shiftTo,
         filters: buildBackendFilters(filters, selectedMachines, selectedOperators),
+        sort: sortBy ? {
+          field: sortBy,
+          direction: sortDirection || 'asc'
+        } : null,
       };
 
       const response = await axios.post(
@@ -304,6 +318,8 @@ export default function DashboardPage() {
     setFilters([]);
     setSelectedMachines([]);
     setSelectedOperators([]);
+    setSortBy('');
+    setSortDirection('asc');
     setDashboardData(null);
     // Clear stale data immediately when changing report type
     setDetailData([]);
@@ -357,6 +373,11 @@ export default function DashboardPage() {
         availableOperators={availableOperators}
         selectedOperators={selectedOperators}
         setSelectedOperators={setSelectedOperators}
+        // Sorting props
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        sortDirection={sortDirection}
+        setSortDirection={setSortDirection}
       />
 
 

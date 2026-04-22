@@ -24,7 +24,7 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
-import { ExpandMore, ExpandLess, Help, Info, Analytics, History } from '@mui/icons-material';
+import { ExpandMore, ExpandLess, Help, Info, Analytics, History, People } from '@mui/icons-material';
 import { API_CONFIG } from '../constants/config';
 
 const ReportTable = ({
@@ -65,6 +65,12 @@ const ReportTable = ({
   const formatPct = (num) => `${Number(num || 0).toFixed(1)}%`;
 
   const formatPieces = (num) => Number(num || 0).toFixed(1);
+
+  const formatMinutes = (value) => {
+    const minutes = Number(value || 0);
+    if (!Number.isFinite(minutes)) return '0.0';
+    return minutes.toFixed(1);
+  };
 
   const getDisplayRow = (selectedRow, rowHistory) => {
     if (rowHistory?.summary && Object.keys(rowHistory.summary).length > 0) {
@@ -955,6 +961,89 @@ Calculated OEE: ${Math.round(otr * per * qr / 10000)}%`;
                             />
                           </ListItem>
                         ))}
+                      </List>
+                    </Paper>
+                  </>
+                )}
+
+                {/* Operator Sessions */}
+                {rowHistory?.operator_sessions && rowHistory.operator_sessions.length > 0 && (
+                  <>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      <People sx={{ mr: 1, verticalAlign: 'middle', fontSize: 20 }} />
+                      Operator Sessions
+                    </Typography>
+
+                    <Paper sx={{ mb: 3, overflow: 'hidden' }}>
+                      <List dense>
+                        {rowHistory.operator_sessions.map((session, index) => {
+                          const categoryChips = [
+                            ['RT', session.rt_minutes],
+                            ['TP', session.tp_minutes],
+                            ['TS', session.ts_minutes],
+                            ['QC', session.qc_minutes],
+                            ['CM', session.cm_minutes],
+                            ['NO', session.no_minutes],
+                            ['NP', session.np_minutes],
+                            ['NM', session.nm_minutes],
+                            ['MP', session.mp_minutes],
+                            ['BT', session.bt_minutes],
+                            ['BR', session.br_minutes],
+                            ['TL', session.tl_minutes],
+                          ].filter(([, minutes]) => Number(minutes || 0) > 0);
+
+                          return (
+                            <ListItem key={`${session.operator || 'unknown'}_${index}`} divider alignItems="flex-start">
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                      {session.operator || '-'}
+                                    </Typography>
+                                    <Chip
+                                      size="small"
+                                      label={`${session.sessions || 0} session${(session.sessions || 0) > 1 ? 's' : ''}`}
+                                    />
+                                    {session.main_loss_code && (
+                                      <Chip
+                                        size="small"
+                                        color="warning"
+                                        label={`Main loss: ${session.main_loss_code} (${formatMinutes(session.main_loss_minutes)} min)`}
+                                      />
+                                    )}
+                                  </Box>
+                                }
+                                secondary={
+                                  <Box sx={{ mt: 0.75 }}>
+                                    <Typography variant="caption" display="block">
+                                      Total time: {formatMinutes(session.total_minutes)} min
+                                    </Typography>
+                                    <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                                      Runtime: {formatMinutes(session.runtime_minutes)} min
+                                    </Typography>
+
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                      {categoryChips.length > 0 ? (
+                                        categoryChips.map(([code, minutes]) => (
+                                          <Chip
+                                            key={code}
+                                            size="small"
+                                            variant="outlined"
+                                            label={`${code} ${formatMinutes(minutes)} min`}
+                                          />
+                                        ))
+                                      ) : (
+                                        <Typography variant="caption" color="text.secondary">
+                                          No category breakdown available
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          );
+                        })}
                       </List>
                     </Paper>
                   </>
