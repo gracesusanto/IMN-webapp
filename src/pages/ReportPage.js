@@ -75,7 +75,7 @@ function buildBackendFilters(filterRules) {
 
 export default function ReportPage() {
   const [reportType, setReportType] = useState("mesin");
-  const [format, setFormat] = useState("imn_dashboard");
+  const [format, setFormat] = useState("limax_dashboard");
   const [dateFrom, setDateFrom] = useState(getTodayDateJakarta());
   const [dateTo, setDateTo] = useState(getTodayDateJakarta());
   const [shiftFrom, setShiftFrom] = useState(1);
@@ -456,6 +456,11 @@ export default function ReportPage() {
 
         {!isLoading && rows.length > 0 && (
           <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="flex-end">
+              <Button variant="contained" onClick={() => fetchReport(true)}>
+                Download Report (CSV)
+              </Button>
+            </Stack>
             <DataTable
               columns={columns}
               data={rows}
@@ -474,11 +479,6 @@ export default function ReportPage() {
               disableClientSort
             />
 
-            <Stack direction="row" justifyContent="flex-end">
-              <Button variant="contained" onClick={() => fetchReport(true)}>
-                Download Report (CSV)
-              </Button>
-            </Stack>
           </Stack>
         )}
 
