@@ -256,7 +256,13 @@ export default function DashboardPage() {
       const response = await axios.post(
         `${API_CONFIG.BASE_URL}${endpoint}`,
         requestData,
-        { responseType: "blob" }
+        {
+          responseType: "blob",
+          headers: {
+            "Accept": "text/csv",
+            "Content-Type": "application/json"
+          }
+        }
       );
 
       const fileURL = window.URL.createObjectURL(new Blob([response.data]));
