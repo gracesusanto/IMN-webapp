@@ -1,0 +1,135 @@
+.page {
+  min-height: calc(100vh - 96px);
+  background: #0f172a;
+  color: #f8fafc;
+  margin: -24px;
+  padding: 20px;
+}
+
+/* Row 1 — title + action buttons */
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.connectionText {
+  color: #cbd5e1;
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Row 2 — filter bar */
+.filterBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.plantControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.filterSelect {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.durationSelect {
+  min-width: 150px;
+}
+
+.clearButton {
+  color: #94a3b8 !important;
+  font-size: 0.8rem !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+/* Row 3 — status chips */
+.summaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.plant {
+  margin-top: 18px;
+}
+
+.line {
+  margin-top: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.disconnected {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #7f1d1d;
+  color: white;
+  font-weight: 700;
+}
+
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: #cbd5e1;
+}
+
+@media (min-width: 1600px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    margin: -24px -16px;
+    padding: 14px;
+  }
+
+  .titleRow {
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

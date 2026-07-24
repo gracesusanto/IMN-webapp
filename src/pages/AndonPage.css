@@ -1,0 +1,118 @@
+.andon-root {
+  background: #111;
+  min-height: 100vh;
+  color: white;
+  font-family: Arial, sans-serif;
+  margin: -24px;
+  padding-bottom: 30px;
+}
+
+.andon-header {
+  background: #000;
+  padding: 15px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  border-bottom: 2px solid #333;
+  letter-spacing: 1px;
+}
+
+.andon-status-indicator {
+  text-align: center;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.andon-board {
+  padding: 10px;
+}
+
+.andon-section {
+  margin-bottom: 30px;
+}
+
+.andon-section-title {
+  margin: 10px 0;
+  font-size: 20px;
+  color: #aaa;
+  border-left: 5px solid #444;
+  padding-left: 10px;
+}
+
+.andon-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .andon-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .andon-header {
+    font-size: 18px;
+    padding: 10px;
+  }
+}
+
+.andon-machine {
+  position: relative;
+  min-height: 90px;
+  height: auto;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.andon-machine-name {
+  font-size: clamp(16px, 2.5vw, 28px);
+  font-weight: bold;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.andon-machine-status {
+  font-size: clamp(12px, 2vw, 22px);
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-top: 2px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.andon-machine-timer {
+  font-size: clamp(12px, 2vw, 22px);
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+/* Status colors */
+.andon-normal        { background: #00c853; color: black; }
+.andon-tools         { background: rgba(255, 0, 0, 0.67); color: white; }
+.andon-quality       { background: #9e9e9e; color: white; }
+.andon-quality-ng    { background: rgba(255, 0, 0, 0.67); color: white; }
+.andon-machine-problem { background: #ff8c00; color: #000; }
+.andon-manpower      { background: #0d47a1; color: white; }
+.andon-schedule      { background: white; color: black; }
+.andon-setting       { background: #ffd600; color: black; }
+.andon-qc            { background: #81d4fa; color: black; }
+.andon-afqc          { background: #81d4fa; color: black; }
+.andon-afqcng        { background: rgba(255, 0, 0, 0.67); color: white; border: 1px solid #81d4fa; }
+
+/* Blink for non-NORMAL */
+@keyframes andon-blink {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+.andon-blink {
+  animation: andon-blink 7s infinite;
+}

@@ -1,0 +1,28 @@
+.machineHeader {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: 0 68px 10px;
+  container-type: inline-size;
+}
+
+.machineName {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.machineBadges {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

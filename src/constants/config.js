@@ -11,6 +11,7 @@ export const ROUTES = {
   RUNNING_MESIN: '/running-mesin',
   REPORT: '/report',
   DASHBOARD: '/dashboard',
+  ANDON: '/andon',
 };
 
 export const NAVIGATION_TABS = [
@@ -20,6 +21,7 @@ export const NAVIGATION_TABS = [
   { label: "Running Mesin", to: ROUTES.RUNNING_MESIN },
   { label: "Report", to: ROUTES.REPORT },
   { label: "📊 Dashboard", to: ROUTES.DASHBOARD },
+  { label: "🚦 Andon", to: ROUTES.ANDON },
 ];
 
 export const APP_CONFIG = {
