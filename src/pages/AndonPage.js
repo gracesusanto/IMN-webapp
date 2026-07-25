@@ -354,7 +354,7 @@ export default function AndonPage() {
                 <div className={styles.grid}>
                   {line.machines.map((machine) => (
                     <MachineCard
-                      key={machine.machine_id}
+                      key={machine.machine_key || machine.machine_id}
                       machine={machine}
                       receivedAtMs={receivedAtMs}
                       nowMs={nowMs}

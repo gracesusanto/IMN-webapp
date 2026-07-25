@@ -22,11 +22,8 @@ const formatStart = (value) => {
   }).format(date).replace(",", " ·")}`;
 };
 
-const machineName = (machine) => {
-  const name = (machine.machine_name || "").replace(/-/g, " ");
-  const t = machine.tonnage;
-  return t ? `${name} (${t} T)` : name;
-};
+const displayMachineName = (machine) =>
+  (machine.machine_name || "").replace(/-/g, " ");
 
 const nameFontSize = (name) => {
   const n = name.length;
@@ -40,7 +37,7 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
   const theme = getStatusTheme(machine.status_group, machine.status_code);
   const elapsed = elapsedAtTick(machine, receivedAtMs, nowMs);
   const hasWarnings = (machine.warnings || []).length > 0;
-  const displayName = machineName(machine);
+  const displayName = displayMachineName(machine);
 
   return (
     <Box
@@ -71,7 +68,10 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
       }}
     >
       <div className={styles.machineHeader}>
-        <p className={styles.machineName} style={{ fontSize: nameFontSize(displayName) }}>{displayName}</p>
+        <div className={styles.machineIdentity}>
+          <p className={styles.machineName} style={{ fontSize: nameFontSize(displayName) }}>{displayName}</p>
+          {machine.tonnage ? <span className={styles.machineTonnage}>{machine.tonnage} T</span> : null}
+        </div>
 
         <div className={styles.machineBadges}>
           {hasWarnings && (
