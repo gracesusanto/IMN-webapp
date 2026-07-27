@@ -1,34 +1,6 @@
+import { getStatusTheme } from "./statusConfig";
 import { elapsedAtTick } from "./time";
 import styles from "./MachineCard.module.css";
-
-const STATUS_COLOR = {
-  running:  "#16a34a",
-  downtime: "#c62828",
-  other:    "#7e22ce",
-  blocked:  "#1d4ed8",
-  quality:  "#0891b2",
-  setup:    "#d97706",
-  no_plan:  "#475569",
-  no_data:  "#6b7280",
-};
-
-function getStatusColor(statusGroup) {
-  return STATUS_COLOR[statusGroup] || "#64748b";
-}
-
-function getStatusBackground(statusGroup) {
-  const backgrounds = {
-    running:  "#16a34a",
-    downtime: "#c62828",
-    other:    "#7e22ce",
-    blocked:  "#1d4ed8",
-    quality:  "#0891b2",
-    setup:    "#f59e0b",
-    no_plan:  "#475569",
-    no_data:  "#6b7280",
-  };
-  return backgrounds[statusGroup] || "#475569";
-}
 
 function formatCompactDuration(totalSeconds = 0) {
   const secs = Math.max(0, Math.floor(totalSeconds));
@@ -74,13 +46,15 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
   const tonnage = machine.tonnage;
   const showTonnage = tonnage != null && tonnage !== 0;
 
+  const theme = getStatusTheme(machine.status_group, machine.status_code);
+
   return (
     <article
       className={styles.card}
       style={{
-        "--status-color": getStatusColor(machine.status_group),
-        background: getStatusBackground(machine.status_group),
-        color: machine.status_group === "setup" ? "#111827" : "#ffffff",
+        "--status-color": theme.background,
+        background: theme.background,
+        color: theme.foreground,
       }}
       onClick={() => onClick(machine)}
       role="button"
