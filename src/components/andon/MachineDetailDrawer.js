@@ -1,7 +1,7 @@
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
 
-import { getStatusTheme } from "./statusConfig";
+import { getStatusTheme } from "../../constants/andonStatus";
 import { elapsedAtTick, formatElapsed } from "./time";
 import { resolveShiftFromISOString } from "../../utils/shiftUtils";
 

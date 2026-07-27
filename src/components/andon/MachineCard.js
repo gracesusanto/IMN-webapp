@@ -1,4 +1,4 @@
-import { getStatusTheme } from "./statusConfig";
+import { getStatusTheme } from "../../constants/andonStatus";
 import { elapsedAtTick } from "./time";
 import styles from "./MachineCard.module.css";
 
@@ -52,8 +52,7 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
     <article
       className={styles.card}
       style={{
-        "--status-color": theme.background,
-        background: theme.background,
+        backgroundColor: theme.background,
         color: theme.foreground,
       }}
       onClick={() => onClick(machine)}

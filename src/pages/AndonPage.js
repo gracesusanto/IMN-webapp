@@ -1,4 +1,5 @@
 import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import {
   Box,
@@ -14,6 +15,7 @@ import {
   Select,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import axios from "axios";
@@ -21,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import MachineCard from "../components/andon/MachineCard";
 import MachineDetailDrawer from "../components/andon/MachineDetailDrawer";
+import { ANDON_STATUS_CONFIG, ANDON_STATUS_ORDER } from "../constants/andonStatus";
 import { KATEGORI_FALLBACK } from "../constants/categories";
 import { API_CONFIG } from "../constants/config";
 import styles from "./AndonPage.module.css";
@@ -258,6 +261,33 @@ export default function AndonPage() {
         </div>
 
         {!connected && <div className={styles.disconnected}>{error}</div>}
+
+        {/* Color guide */}
+        <div className={styles.colorGuide} aria-label="Andon status color guide">
+          <div className={styles.colorGuideTitle}>
+            <InfoOutlinedIcon fontSize="small" />
+            <span>Keterangan warna</span>
+          </div>
+          <div className={styles.colorGuideItems}>
+            {ANDON_STATUS_ORDER.map((key) => {
+              const s = ANDON_STATUS_CONFIG[key];
+              return (
+                <Tooltip key={key} title={s.description} arrow>
+                  <div className={styles.colorGuideItem}>
+                    <span
+                      className={styles.colorGuideSwatch}
+                      style={{
+                        backgroundColor: s.background,
+                        borderColor: key === "no_plan" ? "#94a3b8" : s.background,
+                      }}
+                    />
+                    <span>{s.label}</span>
+                  </div>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Row 2 — secondary filters (Duration, Category, Clear) */}
         <div className={styles.filterBar}>

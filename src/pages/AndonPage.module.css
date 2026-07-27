@@ -77,6 +77,64 @@
   flex-shrink: 0;
 }
 
+/* Color guide */
+.colorGuide {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+.colorGuideTitle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.colorGuideItems {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.colorGuideItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.colorGuideSwatch {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+@media (max-width: 900px) {
+  .colorGuide {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 /* Row 2 — secondary filter bar (Lines, Duration, Clear) */
 .filterBar {
   display: flex;
