@@ -32,22 +32,41 @@ const SUMMARY_ORDER = [
   ["no_plan",  "NO PLAN"],
 ];
 
-const DURATION_OPTIONS = [
-  { label: "Any duration", value: "ANY" },
-  { label: "> 8 hours",    value: "8_HOURS" },
-  { label: "> 1 day",      value: "1_DAY" },
-  { label: "> 3 days",     value: "3_DAYS" },
-  { label: "> 7 days",     value: "7_DAYS" },
-  { label: "> 30 days",    value: "30_DAYS" },
+const DOWNTIME_CATEGORY_OPTIONS = [
+  { code: "MP",  label: "Machine Problem" },
+  { code: "TP",  label: "Tooling Problem" },
+  { code: "NM",  label: "No Material" },
+  { code: "QC",  label: "Quality Check" },
+  { code: "TS",  label: "Tooling Setting" },
+  { code: "TL",  label: "Trial" },
+  { code: "CM",  label: "Change Material" },
 ];
 
-const DURATION_SECONDS = {
-  ANY:       0,
-  "8_HOURS": 8 * 3600,
-  "1_DAY":   24 * 3600,
-  "3_DAYS":  3 * 24 * 3600,
-  "7_DAYS":  7 * 24 * 3600,
-  "30_DAYS": 30 * 24 * 3600,
+const DURATION_OPTIONS = [
+  { label: "Any duration",  value: "ANY" },
+  { label: "> 8 hours",     value: "GT_8H" },
+  { label: "> 1 day",       value: "GT_1D" },
+  { label: "> 3 days",      value: "GT_3D" },
+  { label: "> 7 days",      value: "GT_7D" },
+  { label: "> 30 days",     value: "GT_30D" },
+  { label: "< 1 hour",      value: "LT_1H" },
+  { label: "< 8 hours",     value: "LT_8H" },
+  { label: "< 1 day",       value: "LT_1D" },
+  { label: "< 3 days",      value: "LT_3D" },
+];
+
+// Each entry: [operator, seconds]
+const DURATION_FILTER_MAP = {
+  ANY:    null,
+  GT_8H:  ["gt", 8 * 3600],
+  GT_1D:  ["gt", 24 * 3600],
+  GT_3D:  ["gt", 3 * 24 * 3600],
+  GT_7D:  ["gt", 7 * 24 * 3600],
+  GT_30D: ["gt", 30 * 24 * 3600],
+  LT_1H:  ["lt", 3600],
+  LT_8H:  ["lt", 8 * 3600],
+  LT_1D:  ["lt", 24 * 3600],
+  LT_3D:  ["lt", 3 * 24 * 3600],
 };
 
 export default function AndonPage() {
@@ -59,6 +78,7 @@ export default function AndonPage() {
   const [plantFilter, setPlantFilter] = useState("ALL");
   const [lineFilters, setLineFilters] = useState([]);
   const [durationFilter, setDurationFilter] = useState("ANY");
+  const [categoryFilters, setCategoryFilters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
   const [error, setError] = useState(null);
@@ -129,8 +149,8 @@ export default function AndonPage() {
   }, [lineNames]);
 
   const hasActiveFilters = useMemo(
-    () => plantFilter !== "ALL" || lineFilters.length > 0 || statusFilters.length > 0 || durationFilter !== "ANY",
-    [plantFilter, lineFilters, statusFilters, durationFilter]
+    () => plantFilter !== "ALL" || lineFilters.length > 0 || statusFilters.length > 0 || durationFilter !== "ANY" || categoryFilters.length > 0,
+    [plantFilter, lineFilters, statusFilters, durationFilter, categoryFilters]
   );
 
   const clearFilters = () => {
@@ -138,9 +158,10 @@ export default function AndonPage() {
     setLineFilters([]);
     setStatusFilters([]);
     setDurationFilter("ANY");
+    setCategoryFilters([]);
   };
 
-  const durationMinSeconds = DURATION_SECONDS[durationFilter] ?? 0;
+  const durationRule = DURATION_FILTER_MAP[durationFilter] ?? null;
 
   const visiblePlants = useMemo(() => {
     return (board?.plants || [])
@@ -153,16 +174,21 @@ export default function AndonPage() {
             ...line,
             machines: (line.machines || []).filter((machine) => {
               if (statusFilters.length > 0 && !statusFilters.includes(machine.status_group)) return false;
-              if (durationMinSeconds > 0) {
-                if (machine.duration_seconds == null || machine.duration_seconds < durationMinSeconds) return false;
+              if (durationRule) {
+                const [op, threshold] = durationRule;
+                const d = machine.duration_seconds ?? null;
+                if (d === null) return false;
+                if (op === "gt" && d <= threshold) return false;
+                if (op === "lt" && d >= threshold) return false;
               }
+              if (categoryFilters.length > 0 && !categoryFilters.includes(machine.status_code)) return false;
               return true;
             }),
           }))
           .filter((line) => line.machines.length > 0),
       }))
       .filter((plant) => plant.lines.length > 0);
-  }, [board, lineFilters, plantFilter, statusFilters, durationMinSeconds]);
+  }, [board, lineFilters, plantFilter, statusFilters, durationRule, categoryFilters]);
 
   const enterFullscreen = async () => {
     try {
@@ -186,38 +212,8 @@ export default function AndonPage() {
 
   return (
     <div className={styles.page}>
-      {/* Row 1 — title + actions */}
-      <div className={styles.titleRow}>
-        <div className={styles.titleArea}>
-          <Typography variant="h4" fontWeight={900}>LIVE PRODUCTION ANDON</Typography>
-          <Typography className={styles.connectionText}>
-            Last updated{" "}
-            {board?.generated_at
-              ? new Date(board.generated_at).toLocaleTimeString("en-GB", { hour12: false })
-              : "—"}
-            {connected ? " · Connected" : " · Disconnected"}
-          </Typography>
-        </div>
-        <div className={styles.actions}>
-          <Button variant="contained" startIcon={<RefreshRoundedIcon />} onClick={fetchBoard} size="small">
-            Refresh
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<FullscreenRoundedIcon />}
-            onClick={enterFullscreen}
-            size="small"
-            sx={{ color: "white", borderColor: "rgba(255,255,255,0.6)" }}
-          >
-            Fullscreen
-          </Button>
-        </div>
-      </div>
-
-      {!connected && <div className={styles.disconnected}>{error}</div>}
-
-      {/* Row 2 — filter bar */}
-      <div className={styles.filterBar}>
+      {/* Sticky plant selector */}
+      <div className={styles.plantStickyBar}>
         <div className={styles.plantControl}>
           <span className={styles.filterLabel}>Plant</span>
           <ToggleButtonGroup
@@ -241,105 +237,187 @@ export default function AndonPage() {
             }}
           >
             <ToggleButton value="ALL">ALL</ToggleButton>
-            <ToggleButton value="P1">P1</ToggleButton>
-            <ToggleButton value="P2">P2</ToggleButton>
+            <ToggleButton value="P1">PLANT 1</ToggleButton>
+            <ToggleButton value="P2">PLANT 2</ToggleButton>
           </ToggleButtonGroup>
         </div>
 
-        <FormControl size="small" className={styles.filterSelect}>
-          <InputLabel
-            shrink
-            sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}
-          >
-            Lines
-          </InputLabel>
-          <Select
-            multiple
-            displayEmpty
-            label="Lines"
-            value={lineFilters}
-            input={<OutlinedInput label="Lines" />}
-            onChange={(event) => {
-              const v = event.target.value;
-              setLineFilters(typeof v === "string" ? v.split(",") : v);
-            }}
-            renderValue={(selected) => selected.length === 0 ? "All lines" : selected.join(", ")}
-            MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
-            sx={{
-              color: "white",
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
-              "& .MuiSvgIcon-root": { color: "white" },
-            }}
-          >
-            {lineNames.map((line) => (
-              <MenuItem key={line} value={line}>
-                <Checkbox checked={lineFilters.includes(line)} size="small" />
-                <ListItemText primary={line} />
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl size="small" className={styles.durationSelect}>
-          <InputLabel sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}>
-            Duration
-          </InputLabel>
-          <Select
-            label="Duration"
-            value={durationFilter}
-            onChange={(event) => setDurationFilter(event.target.value)}
-            sx={{
-              color: "white",
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
-              "& .MuiSvgIcon-root": { color: "white" },
-            }}
-          >
-            {DURATION_OPTIONS.map(({ label, value }) => (
-              <MenuItem key={value} value={value}>{label}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {hasActiveFilters && (
-          <Button
-            variant="text"
-            onClick={clearFilters}
-            size="small"
-            className={styles.clearButton}
-          >
-            Clear filters
-          </Button>
-        )}
+        <Typography className={styles.activePlantTitle}>
+          {plantFilter === "ALL"
+            ? "ALL PLANTS"
+            : `SYSTEM ANDON · PRODUCTION MONITORING ${plantFilter.replace("P", "PLANT ")}`}
+        </Typography>
       </div>
 
-      {/* Row 3 — status chips (multi-select; TOTAL clears all) */}
-      <div className={styles.summaryRow}>
-        <Chip
-          clickable
-          onClick={() => setStatusFilters([])}
-          label={`TOTAL ${board?.summary?.total ?? 0}`}
-          color={statusFilters.length === 0 ? "primary" : "default"}
-          variant={statusFilters.length === 0 ? "filled" : "outlined"}
-          sx={{ color: statusFilters.length === 0 ? undefined : "white", borderColor: "rgba(255,255,255,0.45)", fontWeight: 800 }}
-        />
-        {SUMMARY_ORDER.map(([key, label]) => {
-          const active = statusFilters.includes(key);
-          return (
-            <Chip
-              key={key}
-              clickable
-              onClick={() =>
-                setStatusFilters((prev) =>
-                  active ? prev.filter((k) => k !== key) : [...prev, key]
-                )
+      {/* Non-sticky header area */}
+      <div className={styles.headerArea}>
+        {/* Row 1 — title + actions */}
+        <div className={styles.titleRow}>
+          <div className={styles.titleArea}>
+            <Typography variant="h4" fontWeight={900}>LIVE PRODUCTION ANDON</Typography>
+            <Typography className={styles.connectionText}>
+              Last updated{" "}
+              {board?.generated_at
+                ? new Date(board.generated_at).toLocaleTimeString("en-GB", { hour12: false })
+                : "—"}
+              {connected ? " · Connected" : " · Disconnected"}
+            </Typography>
+          </div>
+          <div className={styles.actions}>
+            <Button variant="contained" startIcon={<RefreshRoundedIcon />} onClick={fetchBoard} size="small">
+              Refresh
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<FullscreenRoundedIcon />}
+              onClick={enterFullscreen}
+              size="small"
+              sx={{ color: "white", borderColor: "rgba(255,255,255,0.6)" }}
+            >
+              Fullscreen
+            </Button>
+          </div>
+        </div>
+
+        {!connected && <div className={styles.disconnected}>{error}</div>}
+
+        {/* Row 2 — secondary filters (Lines, Duration, Clear) */}
+        <div className={styles.filterBar}>
+          <FormControl size="small" className={styles.filterSelect}>
+            <InputLabel
+              shrink
+              sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}
+            >
+              Lines
+            </InputLabel>
+            <Select
+              multiple
+              displayEmpty
+              label="Lines"
+              value={lineFilters}
+              input={<OutlinedInput label="Lines" />}
+              onChange={(event) => {
+                const v = event.target.value;
+                setLineFilters(typeof v === "string" ? v.split(",") : v);
+              }}
+              renderValue={(selected) => selected.length === 0 ? "All lines" : selected.join(", ")}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
+              sx={{
+                color: "white",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
+                "& .MuiSvgIcon-root": { color: "white" },
+              }}
+            >
+              {lineNames.map((line) => (
+                <MenuItem key={line} value={line}>
+                  <Checkbox checked={lineFilters.includes(line)} size="small" />
+                  <ListItemText primary={line} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" className={styles.durationSelect}>
+            <InputLabel sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}>
+              Duration
+            </InputLabel>
+            <Select
+              label="Duration"
+              value={durationFilter}
+              onChange={(event) => setDurationFilter(event.target.value)}
+              sx={{
+                color: "white",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
+                "& .MuiSvgIcon-root": { color: "white" },
+              }}
+            >
+              {DURATION_OPTIONS.map(({ label, value }) => (
+                <MenuItem key={value} value={value}>{label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" className={styles.categorySelect}>
+            <InputLabel
+              shrink
+              sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}
+            >
+              Downtime Category
+            </InputLabel>
+            <Select
+              multiple
+              displayEmpty
+              label="Downtime Category"
+              value={categoryFilters}
+              input={<OutlinedInput label="Downtime Category" />}
+              onChange={(event) => {
+                const v = event.target.value;
+                setCategoryFilters(typeof v === "string" ? v.split(",") : v);
+              }}
+              renderValue={(selected) =>
+                selected.length === 0
+                  ? "All categories"
+                  : selected
+                      .map((code) => DOWNTIME_CATEGORY_OPTIONS.find((o) => o.code === code)?.label ?? code)
+                      .join(", ")
               }
-              label={`${label} ${board?.summary?.[key] ?? 0}`}
-              color={active ? "primary" : "default"}
-              variant={active ? "filled" : "outlined"}
-              sx={{ color: active ? undefined : "white", borderColor: "rgba(255,255,255,0.45)", fontWeight: 800 }}
-            />
-          );
-        })}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
+              sx={{
+                color: "white",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
+                "& .MuiSvgIcon-root": { color: "white" },
+              }}
+            >
+              {DOWNTIME_CATEGORY_OPTIONS.map(({ code, label }) => (
+                <MenuItem key={code} value={code}>
+                  <Checkbox checked={categoryFilters.includes(code)} size="small" />
+                  <ListItemText primary={`${code} — ${label}`} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {hasActiveFilters && (
+            <Button
+              variant="text"
+              onClick={clearFilters}
+              size="small"
+              className={styles.clearButton}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+
+        {/* Row 3 — status chips (multi-select; TOTAL clears all) */}
+        <div className={styles.summaryRow}>
+          <Chip
+            clickable
+            onClick={() => setStatusFilters([])}
+            label={`TOTAL ${board?.summary?.total ?? 0}`}
+            color={statusFilters.length === 0 ? "primary" : "default"}
+            variant={statusFilters.length === 0 ? "filled" : "outlined"}
+            sx={{ color: statusFilters.length === 0 ? undefined : "white", borderColor: "rgba(255,255,255,0.45)", fontWeight: 800 }}
+          />
+          {SUMMARY_ORDER.map(([key, label]) => {
+            const active = statusFilters.includes(key);
+            return (
+              <Chip
+                key={key}
+                clickable
+                onClick={() =>
+                  setStatusFilters((prev) =>
+                    active ? prev.filter((k) => k !== key) : [...prev, key]
+                  )
+                }
+                label={`${label} ${board?.summary?.[key] ?? 0}`}
+                color={active ? "primary" : "default"}
+                variant={active ? "filled" : "outlined"}
+                sx={{ color: active ? undefined : "white", borderColor: "rgba(255,255,255,0.45)", fontWeight: 800 }}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {visiblePlants.length === 0 ? (
@@ -347,10 +425,19 @@ export default function AndonPage() {
       ) : (
         visiblePlants.map((plant) => (
           <section className={styles.plant} key={plant.name}>
-            <Typography variant="h5" fontWeight={900}>{plant.display_name || plant.name}</Typography>
+            <div className={styles.plantNameStickyHeader}>
+              <Typography className={styles.plantNameLabel}>
+                {plant.display_name || plant.name}
+              </Typography>
+            </div>
             {plant.lines.map((line) => (
               <section className={styles.line} key={`${plant.name}-${line.name}`}>
-                <Typography variant="h6" fontWeight={800} mb={1}>{line.name}</Typography>
+                <div className={styles.lineStickyHeader}>
+                  <Typography className={styles.lineName}>{line.name}</Typography>
+                  <Typography className={styles.lineMachineCount}>
+                    {line.machines.length} machines
+                  </Typography>
+                </div>
                 <div className={styles.grid}>
                   {line.machines.map((machine) => (
                     <MachineCard

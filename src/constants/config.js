@@ -1,6 +1,14 @@
 // Application configuration constants
+// export const API_CONFIG = {
+//   BASE_URL: process.env.REACT_APP_API_URL || 'http://192.168.1.142:8001',
+// };
+
 export const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL || 'http://192.168.1.142:8001',
+  BASE_URL: process.env.REACT_APP_API_URL || 'http://10.37.129.2:8001',
+};
+
+export const ANDON_CONFIG = {
+  BASE_URL: process.env.REACT_APP_ANDON_URL || 'http://192.168.1.111/andon-system',
 };
 
 export const ROUTES = {

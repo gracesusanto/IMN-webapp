@@ -1,148 +1,121 @@
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import { Box, Chip, Typography } from "@mui/material";
-
-import { getStatusTheme } from "./statusConfig";
-import {
-  elapsedAtTick,
-  formatElapsed,
-  formatOperators,
-} from "./time";
+import { elapsedAtTick } from "./time";
 import styles from "./MachineCard.module.css";
 
-const formatStart = (value) => {
-  if (!value) return "Started —";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Started —";
-  return `Started ${new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date).replace(",", " ·")}`;
+const STATUS_COLOR = {
+  running:  "#16a34a",
+  downtime: "#c62828",
+  other:    "#7e22ce",
+  blocked:  "#1d4ed8",
+  quality:  "#0891b2",
+  setup:    "#d97706",
+  no_plan:  "#475569",
+  no_data:  "#6b7280",
 };
 
-const displayMachineName = (machine) =>
-  (machine.machine_name || "").replace(/-/g, " ");
+function getStatusColor(statusGroup) {
+  return STATUS_COLOR[statusGroup] || "#64748b";
+}
 
-const nameFontSize = (name) => {
+function getStatusBackground(statusGroup) {
+  const backgrounds = {
+    running:  "#16a34a",
+    downtime: "#c62828",
+    other:    "#7e22ce",
+    blocked:  "#1d4ed8",
+    quality:  "#0891b2",
+    setup:    "#f59e0b",
+    no_plan:  "#475569",
+    no_data:  "#6b7280",
+  };
+  return backgrounds[statusGroup] || "#475569";
+}
+
+function formatCompactDuration(totalSeconds = 0) {
+  const secs = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(secs / 86400);
+  const hours = Math.floor((secs % 86400) / 3600);
+  const minutes = Math.floor((secs % 3600) / 60);
+  const seconds = secs % 60;
+
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+
+  if (days > 0) return `${days}d ${hh}:${mm}:${ss}`;
+  return `${hh}:${mm}:${ss}`;
+}
+
+function getNameSizeClass(name) {
   const n = name.length;
-  if (n <= 6)  return "2.4rem";
-  if (n <= 10) return "1.9rem";
-  if (n <= 14) return "1.4rem";
-  return "1.1rem";
-};
+  if (n > 24) return styles.machineNameXSmall;
+  if (n > 18) return styles.machineNameSmall;
+  if (n > 13) return styles.machineNameMedium;
+  return styles.machineNameLarge;
+}
 
 export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
-  const theme = getStatusTheme(machine.status_group, machine.status_code);
   const elapsed = elapsedAtTick(machine, receivedAtMs, nowMs);
-  const hasWarnings = (machine.warnings || []).length > 0;
-  const displayName = displayMachineName(machine);
+  const machineName = (machine.machine_name || machine.name || "Unknown").replace(/-/g, " ");
+
+  const partText = machine.part_display || machine.part_name || "";
+
+  const operators = machine.operators || [];
+  const operatorNames = operators.map((op) => op.operator_name).filter(Boolean);
+  const operatorText =
+    operatorNames.length === 0
+      ? ""
+      : operatorNames.length === 1
+        ? operatorNames[0]
+        : `${operatorNames[0]} +${operatorNames.length - 1}`;
+
+  const isNoSchedule = machine.status_group === "no_plan";
+  const showTimer = !isNoSchedule && machine.duration_seconds != null;
 
   return (
-    <Box
-      component="button"
-      type="button"
-      onClick={() => onClick(machine)}
-      aria-label={`${machine.machine_name}, ${machine.status_label}`}
-      sx={{
-        width: "100%",
-        minHeight: 245,
-        p: 2,
-        borderRadius: 2,
-        border: `3px solid ${theme.border}`,
-        background: theme.background,
-        color: theme.foreground,
-        cursor: "pointer",
-        textAlign: "left",
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: 2,
-        transition: "transform 120ms ease, box-shadow 120ms ease",
-        "&:hover, &:focus-visible": {
-          transform: "translateY(-2px)",
-          boxShadow: 6,
-          outline: "3px solid rgba(255,255,255,0.75)",
-          outlineOffset: 2,
-        },
+    <article
+      className={styles.card}
+      style={{
+        "--status-color": getStatusColor(machine.status_group),
+        background: getStatusBackground(machine.status_group),
+        color: machine.status_group === "setup" ? "#111827" : "#ffffff",
       }}
+      onClick={() => onClick(machine)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(machine); }}
+      aria-label={`${machineName}, ${machine.status_label}`}
     >
-      <div className={styles.machineHeader}>
-        <div className={styles.machineIdentity}>
-          <p className={styles.machineName} style={{ fontSize: nameFontSize(displayName) }}>{displayName}</p>
-          {machine.tonnage ? <span className={styles.machineTonnage}>{machine.tonnage} T</span> : null}
-        </div>
-
-        <div className={styles.machineBadges}>
-          {hasWarnings && (
-            <WarningAmberRoundedIcon
-              aria-label="Data warning"
-              fontSize="small"
-              sx={{ opacity: 0.9 }}
-            />
-          )}
-          <Chip
-            label={machine.status_code}
-            size="small"
-            sx={{
-              fontWeight: 900,
-              background: "rgba(255,255,255,0.92)",
-              color: "#111827",
-            }}
-          />
-        </div>
+      <div
+        className={`${styles.machineName} ${getNameSizeClass(machineName)}`}
+        title={machineName}
+      >
+        {machineName}
       </div>
 
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          py: 1.5,
-        }}
-      >
-        <Typography
-          variant="h5"
-          component="div"
-          fontWeight={900}
-          textAlign="center"
-          sx={{ lineHeight: 1.1 }}
-        >
-          {machine.status_label}
-        </Typography>
-        {machine.show_timer && (
-          <Typography
-            component="div"
-            fontWeight={900}
-            sx={{
-              mt: 1,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              fontSize: "clamp(1.35rem, 2.5vw, 2rem)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {formatElapsed(elapsed)}
-          </Typography>
-        )}
-      </Box>
+      <div className={styles.status}>
+        {machine.status_label || "NO SCHEDULE"}
+      </div>
 
-      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.4)", pt: 1.25 }}>
-        <Typography fontWeight={800} noWrap title={machine.part_name || ""}>
-          {machine.part_display_mode === "last" && machine.part_name
-            ? `Last: ${machine.part_name}`
-            : machine.part_name || "No active part"}
-        </Typography>
-        <Typography noWrap title={formatOperators(machine)}>
-          {formatOperators(machine)}
-        </Typography>
-        {machine.show_started_at && (
-          <Typography variant="caption" sx={{ opacity: 0.9 }}>
-            {formatStart(machine.started_at)}
-          </Typography>
-        )}
-      </Box>
-    </Box>
+      {showTimer && (
+        <div className={styles.timer}>
+          {formatCompactDuration(elapsed)}
+        </div>
+      )}
+
+      <div className={styles.metaRow}>
+        <div
+          className={styles.partValue}
+          title={partText || "No active part"}
+        >
+          {partText || (isNoSchedule ? "—" : "No part")}
+        </div>
+        <div
+          className={styles.operatorValue}
+          title={operatorNames.join(", ") || "No active operator"}
+        >
+          {operatorText || (isNoSchedule ? "—" : "No operator")}
+        </div>
+      </div>
+    </article>
   );
 }
