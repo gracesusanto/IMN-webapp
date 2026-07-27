@@ -37,33 +37,46 @@ function NavTabs() {
   );
 }
 
+function AppContent() {
+  const location = useLocation();
+  const isAndon = location.pathname.startsWith(ROUTES.ANDON);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <AppBar position="sticky" elevation={1}>
+        <Toolbar>
+          <Typography variant="h6" sx={{ whiteSpace: "nowrap" }}>
+            {APP_CONFIG.TITLE}
+          </Typography>
+          <NavTabs />
+        </Toolbar>
+      </AppBar>
+
+      <Container
+        component="main"
+        maxWidth={false}
+        sx={{ flex: 1, py: isAndon ? 0 : 3, px: isAndon ? '0 !important' : undefined }}
+      >
+        <Routes>
+          <Route path={ROUTES.ROOT} element={<Navigate to={APP_CONFIG.DEFAULT_ROUTE} replace />} />
+          <Route path={ROUTES.TOOLING} element={<ToolingPage />} />
+          <Route path={ROUTES.OPERATOR} element={<OperatorPage />} />
+          <Route path={ROUTES.MESIN} element={<MesinPage />} />
+          <Route path={ROUTES.RUNNING_MESIN} element={<RunningMesinPage />} />
+          <Route path={ROUTES.REPORT} element={<ReportPage />} />
+          <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.ANDON} element={<AndonPage />} />
+          <Route path="*" element={<Navigate to={APP_CONFIG.DEFAULT_ROUTE} replace />} />
+        </Routes>
+      </Container>
+    </Box>
+  );
+}
+
 export default function App() {
   return (
     <Router>
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <AppBar position="sticky" elevation={1}>
-          <Toolbar>
-            <Typography variant="h6" sx={{ whiteSpace: "nowrap" }}>
-              {APP_CONFIG.TITLE}
-            </Typography>
-            <NavTabs />
-          </Toolbar>
-        </AppBar>
-
-        <Container component="main" maxWidth={false} sx={{ flex: 1, py: 3 }}>
-          <Routes>
-            <Route path={ROUTES.ROOT} element={<Navigate to={APP_CONFIG.DEFAULT_ROUTE} replace />} />
-            <Route path={ROUTES.TOOLING} element={<ToolingPage />} />
-            <Route path={ROUTES.OPERATOR} element={<OperatorPage />} />
-            <Route path={ROUTES.MESIN} element={<MesinPage />} />
-            <Route path={ROUTES.RUNNING_MESIN} element={<RunningMesinPage />} />
-            <Route path={ROUTES.REPORT} element={<ReportPage />} />
-            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-            <Route path={ROUTES.ANDON} element={<AndonPage />} />
-            <Route path="*" element={<Navigate to={APP_CONFIG.DEFAULT_ROUTE} replace />} />
-          </Routes>
-        </Container>
-      </Box>
+      <AppContent />
     </Router>
   );
 }
