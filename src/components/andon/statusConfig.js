@@ -1,23 +1,21 @@
 // Single source of truth for andon status colors.
 // Used by MachineCard and MachineDetailDrawer.
 
+// Colors match the physical factory legend board.
 export const STATUS_THEME = {
-  running:  { background: "#00c853", foreground: "#ffffff" },
-  downtime: { background: "#9f0b0b", foreground: "#ffffff" },
-  other:    { background: "#7e22ce", foreground: "#ffffff" },
-  blocked:  { background: "#19458a", foreground: "#ffffff" },
-  quality:  { background: "#67a9c6", foreground: "#111111" },
-  setup:    { background: "#c5a500", foreground: "#111111" },
-  no_plan:  { background: "#f4f4f4", foreground: "#111111" },
-  no_data:  { background: "#4b5563", foreground: "#ffffff" },
+  running:  { background: "#4CAF50", foreground: "#ffffff" }, // NORMAL
+  downtime: { background: "#C95F69", foreground: "#ffffff" }, // PROBLEM TOOLS
+  other:    { background: "#D18A36", foreground: "#111111" }, // PROBLEM MACHINE
+  blocked:  { background: "#315A96", foreground: "#ffffff" }, // NO MANPOWER
+  quality:  { background: "#3C9BC7", foreground: "#111111" }, // CEK QC FIRST SAMPLE
+  setup:    { background: "#D4BE36", foreground: "#111111" }, // SETTING / GANTI MODEL
+  no_plan:  { background: "#F5F5F5", foreground: "#111111" }, // NO SCHEDULE
+  no_data:  { background: "#D1D5DB", foreground: "#111111" }, // unknown
 };
 
-// Per-code overrides within the downtime group.
-export const STATUS_CODE_THEME = {
-  MP: { background: "#7f0000", foreground: "#ffffff" },
-  TP: { background: "#9f0b0b", foreground: "#ffffff" },
-  NM: { background: "#c62828", foreground: "#ffffff" },
-};
+// Per-code overrides are intentionally removed — the group color is sufficient
+// and per-code shading would diverge from the physical legend.
+export const STATUS_CODE_THEME = {};
 
 const FALLBACK = { background: "#4b5563", foreground: "#ffffff" };
 
