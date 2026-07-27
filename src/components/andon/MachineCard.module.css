@@ -99,9 +99,27 @@
   line-height: 1.3;
 }
 
+/* Right column — tonnage + operator stacked */
+.metaRight {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* Tonnage badge */
+.tonnageValue {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0.85;
+  letter-spacing: 0.03em;
+}
+
 /* Operator — truncates on the right */
 .operatorValue {
-  flex-shrink: 0;
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import MachineCard from "../components/andon/MachineCard";
 import MachineDetailDrawer from "../components/andon/MachineDetailDrawer";
+import { KATEGORI_FALLBACK } from "../constants/categories";
 import { API_CONFIG } from "../constants/config";
 import styles from "./AndonPage.module.css";
 
@@ -32,15 +33,6 @@ const SUMMARY_ORDER = [
   ["no_plan",  "NO PLAN"],
 ];
 
-const DOWNTIME_CATEGORY_OPTIONS = [
-  { code: "MP",  label: "Machine Problem" },
-  { code: "TP",  label: "Tooling Problem" },
-  { code: "NM",  label: "No Material" },
-  { code: "QC",  label: "Quality Check" },
-  { code: "TS",  label: "Tooling Setting" },
-  { code: "TL",  label: "Trial" },
-  { code: "CM",  label: "Change Material" },
-];
 
 const DURATION_OPTIONS = [
   { label: "Any duration",  value: "ANY" },
@@ -76,9 +68,9 @@ export default function AndonPage() {
   const [selectedMachineId, setSelectedMachineId] = useState(null);
   const [statusFilters, setStatusFilters] = useState([]);
   const [plantFilter, setPlantFilter] = useState("ALL");
-  const [lineFilters, setLineFilters] = useState([]);
   const [durationFilter, setDurationFilter] = useState("ANY");
   const [categoryFilters, setCategoryFilters] = useState([]);
+  const [kategoriOptions, setKategoriOptions] = useState(KATEGORI_FALLBACK);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
   const [error, setError] = useState(null);
@@ -122,8 +114,17 @@ export default function AndonPage() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [fetchBoard]);
 
+  useEffect(() => {
+    axios
+      .get(`${API_CONFIG.BASE_URL}/api/meta/categories`, { timeout: 5000 })
+      .then((res) => { if (Array.isArray(res.data) && res.data.length > 0) setKategoriOptions(res.data); })
+      .catch(() => { /* keep KATEGORI_FALLBACK */ });
+  }, []);
+
   const allMachines = useMemo(
-    () => (board?.plants || []).flatMap((plant) => (plant.lines || []).flatMap((line) => line.machines || [])),
+    () => (board?.plants || []).flatMap((plant) =>
+      (plant.process_groups || []).flatMap((pg) => pg.machines || [])
+    ),
     [board]
   );
 
@@ -132,30 +133,13 @@ export default function AndonPage() {
     [allMachines, selectedMachineId]
   );
 
-  const lineNames = useMemo(() => {
-    const seen = new Set();
-    const names = [];
-    (board?.plants || []).forEach((plant) => {
-      if (plantFilter !== "ALL" && plant.name !== plantFilter) return;
-      (plant.lines || []).forEach((line) => {
-        if (!seen.has(line.name)) { seen.add(line.name); names.push(line.name); }
-      });
-    });
-    return names;
-  }, [board, plantFilter]);
-
-  useEffect(() => {
-    setLineFilters((current) => current.filter((line) => lineNames.includes(line)));
-  }, [lineNames]);
-
   const hasActiveFilters = useMemo(
-    () => plantFilter !== "ALL" || lineFilters.length > 0 || statusFilters.length > 0 || durationFilter !== "ANY" || categoryFilters.length > 0,
-    [plantFilter, lineFilters, statusFilters, durationFilter, categoryFilters]
+    () => plantFilter !== "ALL" || statusFilters.length > 0 || durationFilter !== "ANY" || categoryFilters.length > 0,
+    [plantFilter, statusFilters, durationFilter, categoryFilters]
   );
 
   const clearFilters = () => {
     setPlantFilter("ALL");
-    setLineFilters([]);
     setStatusFilters([]);
     setDurationFilter("ANY");
     setCategoryFilters([]);
@@ -168,11 +152,10 @@ export default function AndonPage() {
       .filter((plant) => plantFilter === "ALL" || plant.name === plantFilter)
       .map((plant) => ({
         ...plant,
-        lines: (plant.lines || [])
-          .filter((line) => lineFilters.length === 0 || lineFilters.includes(line.name))
-          .map((line) => ({
-            ...line,
-            machines: (line.machines || []).filter((machine) => {
+        process_groups: (plant.process_groups || [])
+          .map((pg) => ({
+            ...pg,
+            machines: (pg.machines || []).filter((machine) => {
               if (statusFilters.length > 0 && !statusFilters.includes(machine.status_group)) return false;
               if (durationRule) {
                 const [op, threshold] = durationRule;
@@ -185,10 +168,10 @@ export default function AndonPage() {
               return true;
             }),
           }))
-          .filter((line) => line.machines.length > 0),
+          .filter((pg) => pg.machines.length > 0),
       }))
-      .filter((plant) => plant.lines.length > 0);
-  }, [board, lineFilters, plantFilter, statusFilters, durationRule, categoryFilters]);
+      .filter((plant) => plant.process_groups.length > 0);
+  }, [board, plantFilter, statusFilters, durationRule, categoryFilters]);
 
   const enterFullscreen = async () => {
     try {
@@ -242,11 +225,6 @@ export default function AndonPage() {
           </ToggleButtonGroup>
         </div>
 
-        <Typography className={styles.activePlantTitle}>
-          {plantFilter === "ALL"
-            ? "ALL PLANTS"
-            : `SYSTEM ANDON · PRODUCTION MONITORING ${plantFilter.replace("P", "PLANT ")}`}
-        </Typography>
       </div>
 
       {/* Non-sticky header area */}
@@ -281,42 +259,8 @@ export default function AndonPage() {
 
         {!connected && <div className={styles.disconnected}>{error}</div>}
 
-        {/* Row 2 — secondary filters (Lines, Duration, Clear) */}
+        {/* Row 2 — secondary filters (Duration, Category, Clear) */}
         <div className={styles.filterBar}>
-          <FormControl size="small" className={styles.filterSelect}>
-            <InputLabel
-              shrink
-              sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}
-            >
-              Lines
-            </InputLabel>
-            <Select
-              multiple
-              displayEmpty
-              label="Lines"
-              value={lineFilters}
-              input={<OutlinedInput label="Lines" />}
-              onChange={(event) => {
-                const v = event.target.value;
-                setLineFilters(typeof v === "string" ? v.split(",") : v);
-              }}
-              renderValue={(selected) => selected.length === 0 ? "All lines" : selected.join(", ")}
-              MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
-              sx={{
-                color: "white",
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
-                "& .MuiSvgIcon-root": { color: "white" },
-              }}
-            >
-              {lineNames.map((line) => (
-                <MenuItem key={line} value={line}>
-                  <Checkbox checked={lineFilters.includes(line)} size="small" />
-                  <ListItemText primary={line} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
           <FormControl size="small" className={styles.durationSelect}>
             <InputLabel sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}>
               Duration
@@ -342,23 +286,23 @@ export default function AndonPage() {
               shrink
               sx={{ color: "#94a3b8", "&.Mui-focused": { color: "#94a3b8" } }}
             >
-              Downtime Category
+              Category
             </InputLabel>
             <Select
               multiple
               displayEmpty
-              label="Downtime Category"
+              label="Category"
               value={categoryFilters}
-              input={<OutlinedInput label="Downtime Category" />}
+              input={<OutlinedInput label="Category" />}
               onChange={(event) => {
                 const v = event.target.value;
                 setCategoryFilters(typeof v === "string" ? v.split(",") : v);
               }}
               renderValue={(selected) =>
                 selected.length === 0
-                  ? "All categories"
+                  ? "All"
                   : selected
-                      .map((code) => DOWNTIME_CATEGORY_OPTIONS.find((o) => o.code === code)?.label ?? code)
+                      .map((code) => kategoriOptions.find((o) => o.code === code)?.label ?? code)
                       .join(", ")
               }
               MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
@@ -368,7 +312,7 @@ export default function AndonPage() {
                 "& .MuiSvgIcon-root": { color: "white" },
               }}
             >
-              {DOWNTIME_CATEGORY_OPTIONS.map(({ code, label }) => (
+              {kategoriOptions.map(({ code, label }) => (
                 <MenuItem key={code} value={code}>
                   <Checkbox checked={categoryFilters.includes(code)} size="small" />
                   <ListItemText primary={`${code} — ${label}`} />
@@ -430,16 +374,14 @@ export default function AndonPage() {
                 {plant.display_name || plant.name}
               </Typography>
             </div>
-            {plant.lines.map((line) => (
-              <section className={styles.line} key={`${plant.name}-${line.name}`}>
-                <div className={styles.lineStickyHeader}>
-                  <Typography className={styles.lineName}>{line.name}</Typography>
-                  <Typography className={styles.lineMachineCount}>
-                    {line.machines.length} machines
-                  </Typography>
+            {plant.process_groups.map((pg) => (
+              <section className={styles.processGroup} key={`${plant.name}-${pg.name}`}>
+                <div className={styles.processGroupHeader}>
+                  <Typography className={styles.processGroupName}>{pg.name}</Typography>
+                  <Typography className={styles.lineMachineCount}>{pg.machines.length} machines</Typography>
                 </div>
                 <div className={styles.grid}>
-                  {line.machines.map((machine) => (
+                  {pg.machines.map((machine) => (
                     <MachineCard
                       key={machine.machine_key || machine.machine_id}
                       machine={machine}

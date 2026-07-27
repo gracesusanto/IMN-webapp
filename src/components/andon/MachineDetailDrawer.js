@@ -3,6 +3,7 @@ import { Box, Drawer, IconButton, Typography } from "@mui/material";
 
 import { getStatusTheme } from "./statusConfig";
 import { elapsedAtTick, formatElapsed } from "./time";
+import { resolveShiftFromISOString } from "../../utils/shiftUtils";
 
 const formatActivityStart = (value) => {
   if (!value) return "—";
@@ -121,6 +122,15 @@ export default function MachineDetailDrawer({ machine, receivedAtMs, nowMs, onCl
                           <Box>
                             <Typography variant="caption" color="text.secondary">Start</Typography>
                             <Typography fontWeight={700}>{formatActivityStart(activity.started_at)}</Typography>
+                            {(() => {
+                              const resolved = resolveShiftFromISOString(activity.started_at);
+                              if (!resolved) return null;
+                              return (
+                                <Typography variant="body2" color="text.secondary">
+                                  {resolved.dayName} · Shift {resolved.shift}
+                                </Typography>
+                              );
+                            })()}
                           </Box>
                         </Box>
                       </Box>

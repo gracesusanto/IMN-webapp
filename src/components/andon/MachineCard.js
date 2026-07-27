@@ -71,6 +71,9 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
   const isNoSchedule = machine.status_group === "no_plan";
   const showTimer = !isNoSchedule && machine.duration_seconds != null;
 
+  const tonnage = machine.tonnage;
+  const showTonnage = tonnage != null && tonnage !== 0;
+
   return (
     <article
       className={styles.card}
@@ -109,11 +112,16 @@ export default function MachineCard({ machine, receivedAtMs, nowMs, onClick }) {
         >
           {partText || (isNoSchedule ? "—" : "No part")}
         </div>
-        <div
-          className={styles.operatorValue}
-          title={operatorNames.join(", ") || "No active operator"}
-        >
-          {operatorText || (isNoSchedule ? "—" : "No operator")}
+        <div className={styles.metaRight}>
+          {showTonnage && (
+            <div className={styles.tonnageValue}>{tonnage} T</div>
+          )}
+          <div
+            className={styles.operatorValue}
+            title={operatorNames.join(", ") || "No active operator"}
+          >
+            {operatorText || (isNoSchedule ? "—" : "No operator")}
+          </div>
         </div>
       </div>
     </article>

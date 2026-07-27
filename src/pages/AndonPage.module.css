@@ -32,16 +32,6 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
 }
 
-.activePlantTitle {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 1rem !important;
-  font-weight: 900 !important;
-  text-align: center;
-}
-
 .plantControl {
   display: flex;
   align-items: center;
@@ -125,9 +115,43 @@
   margin-bottom: 16px;
 }
 
-/* Plant + line sections */
+/* Plant + process group + line sections */
 .plant {
   margin-top: 10px;
+}
+
+.processGroup {
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+/* Process group header — sits below the plant name bar */
+.processGroupHeader {
+  position: sticky;
+  top: calc(var(--app-header-height) + var(--plant-bar-height) + var(--plant-name-bar-height));
+  z-index: 32;
+
+  min-height: 38px;
+  padding: 5px 10px 5px 22px;
+  margin-bottom: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  background: #161616;
+  border-left: 4px solid #475569;
+  border-bottom: 1px solid #1e293b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.processGroupName {
+  color: #cbd5e1;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 /* Sticky plant name header — sits below the plant selector bar */
@@ -154,39 +178,6 @@
   font-weight: 900 !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-}
-
-.line {
-  margin-top: 8px;
-  margin-bottom: 12px;
-}
-
-/* Sticky line header — sits below plant name bar */
-.lineStickyHeader {
-  position: sticky;
-  top: calc(var(--app-header-height) + var(--plant-bar-height) + var(--plant-name-bar-height));
-  z-index: 30;
-
-  min-height: 38px;
-  margin-bottom: 8px;
-  padding: 7px 10px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  background: #111111;
-  border-left: 5px solid #64748b;
-  border-bottom: 1px solid #334155;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
-
-.lineName {
-  color: #e5e7eb;
-  font-size: 1rem !important;
-  font-weight: 900 !important;
-  text-transform: uppercase;
 }
 
 .lineMachineCount {
